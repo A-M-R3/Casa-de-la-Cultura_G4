@@ -16,5 +16,13 @@ if not exist "db.sqlite3" (
 )
 
 call "venv\Scripts\activate.bat"
-echo Iniciando servidor Django...
-python manage.py runserver 127.0.0.1:8000
+
+echo Iniciando Casa de la Cultura...
+echo NO cierres esta ventana mientras uses la aplicacion.
+echo.
+
+:: Abrir el navegador tras 3 segundos (en segundo plano)
+start "" cmd /c "timeout /t 3 >nul && start http://127.0.0.1:8000"
+
+:: Iniciar el servidor (esta ventana debe quedarse abierta)
+python manage.py runserver 127.0.0.1:8000 --noreload
