@@ -742,7 +742,7 @@
                     escribirTexto(box, data.resumen, velocidad);
                 })
                 .catch(() => {
-                    box.innerHTML = 'Error de conexión con el modelo local.';
+                    box.innerHTML = 'No se ha podido generar el resumen. Inténtalo de nuevo.';
                 });
         }
     </script>

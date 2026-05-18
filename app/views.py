@@ -238,8 +238,8 @@ def registro_view(request):
             if hasattr(user, 'comment'): user.comment = gustos
             elif hasattr(user, 'preferences'): user.preferences = gustos
 
-            if hasattr(user, 'birth_date'): user.birth_date = fecha_nacimiento
-            elif hasattr(user, 'birthdate'): user.birthdate = fecha_nacimiento
+            if hasattr(user, 'birth_date'): user.birth_date = fecha_nacimiento or None
+            elif hasattr(user, 'birthdate'): user.birthdate = fecha_nacimiento or None
 
             user.save()
         except: pass
@@ -286,8 +286,8 @@ def perfil_view(request):
             if user:
                 if hasattr(user, 'comment'): user.comment = nuevos_gustos
                 elif hasattr(user, 'preferences'): user.preferences = nuevos_gustos
-                if hasattr(user, 'birth_date'): user.birth_date = nueva_fecha
-                elif hasattr(user, 'birthdate'): user.birthdate = nueva_fecha
+                if hasattr(user, 'birth_date'): user.birth_date = nueva_fecha or None
+                elif hasattr(user, 'birthdate'): user.birthdate = nueva_fecha or None
                 user.save()
         except: pass
         return redirect('buscador')
@@ -572,7 +572,9 @@ def valorar_libro(request, book_id):
             return redirect('buscador')
         copy_obj = Copy.objects.filter(book=book_obj).first()
         if not copy_obj:
-            return redirect('buscador')
+            from django.db.models import Max
+            max_copy_id = Copy.objects.aggregate(m=Max('copy_id'))['m'] or 0
+            copy_obj = Copy.objects.create(copy_id=max_copy_id + 1, book=book_obj, available=False)
         Rating.objects.update_or_create(
             user=user_obj, copy=copy_obj,
             defaults={'rating': rating_val}
@@ -596,8 +598,10 @@ def resumen_ia_view(request):
             df_sinopsis = pd.read_csv(ruta_sinopsis)
             match = df_sinopsis[df_sinopsis['title'].str.lower() == titulo.lower()]
             if not match.empty:
-                texto = match.iloc[0]['sinopsis']
-                return JsonResponse({'resumen': texto})
+                texto = str(match.iloc[0]['sinopsis']).strip()
+                tiene_castellano = bool(re.search(r'[áéíóúñüÁÉÍÓÚÑÜ]', texto[:300]))
+                if texto and texto not in ('nan', 'None') and tiene_castellano:
+                    return JsonResponse({'resumen': texto})
         except: pass
 
     partes = []
