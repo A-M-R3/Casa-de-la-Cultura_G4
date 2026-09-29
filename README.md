@@ -9,7 +9,7 @@ Proyecto de la asignatura *Proyectos de Software* del Bachelor en Ingeniería In
 La Casa de la Cultura es un bibliobús municipal con un fondo amplio de libros y un histórico de usuarios y valoraciones que hasta ahora no se estaba aprovechando. El encargo del cliente (Albert Calvo Ibáñez, en representación del ayuntamiento) consiste en construir un sistema que permita:
 
 - Gestionar el catálogo a partir de los datos depurados del sistema anterior.
-- Recomendar libros a los usuarios mediante un motor de asociación entre lectores ("quien leyó X también disfrutó Y").
+- Generar recomendaciones de libros mediante reglas de asociación obtenidas con el algoritmo Apriori.
 - Visualizar el uso del fondo y los gustos de los lectores en cuadros de mando.
 
 El sistema debe funcionar de forma local y offline en un único PC en la sede de la Casa de la Cultura, sin dependencias de internet ni licencias de pago.
@@ -36,13 +36,28 @@ El sistema debe funcionar de forma local y offline en un único PC en la sede de
 ```text
 Casa-de-la-Cultura_G4/
 ├── casa_cultura/           # Configuración y recursos de Django
-├── app/                    # Catálogo, dashboard y recomendación
+├── app/                    # Catálogo, dashboard y modelos de recomendación
 ├── data/                   # Datos procesados utilizados por la aplicación
 ├── load_data_postgres.py   # Carga masiva de datos en PostgreSQL
 ├── manage.py
 ├── requirements.txt        # Dependencias del proyecto
 └── README.md               # Documentación del proyecto
 ```
+
+### Modelo de recomendaciones
+
+La reevaluación utiliza un sistema de reglas de asociación basado en Apriori.
+
+Las ejecuciones del algoritmo se registran en `AprioriRun`, incluyendo sus parámetros y métricas generales.
+
+Las reglas generadas se almacenan en:
+
+- `AssociationRule`: antecedente de la regla y métricas `support`, `confidence` y `lift`.
+- `AssociationRuleTarget`: libros que forman el conjunto consecuente de cada regla.
+
+Este diseño permite representar reglas del tipo:
+
+`Libro A => [Libro B, Libro C, ...]`
 
 ## Configuración del entorno local
 
@@ -108,4 +123,4 @@ Con el entorno virtual activo:
 python manage.py runserver
 ```
 
-La aplicación queda disponible en `http://127.0.0.1:8000/`.
+La aplicación queda disponible en [http://127.0.0.1:8000/](http://127.0.0.1:8000/).

@@ -1,3 +1,16 @@
+"""
+LEGACY - Recomendador anterior basado en similitud coseno.
+
+Este script pertenece a la versión original del proyecto y no es compatible
+con el esquema actual de la base de datos, ya que utiliza el modelo
+Recommendation, eliminado durante la adaptación de la reevaluación.
+
+El sistema de recomendación actual se implementará mediante Apriori y las
+entidades AprioriRun, AssociationRule y AssociationRuleTarget.
+
+Se conserva únicamente como referencia histórica de la evolución del proyecto.
+"""
+
 import os
 import django
 import pandas as pd

@@ -1,186 +1,375 @@
 # Pipeline de datos — Casa de la Cultura
 
-> Última actualización: 18/05/2026  
+> Última actualización: 29/09/2026
 > Responsable: Jose Luis Mus Peñarroja (Ingeniero de Datos)
 
-Describe el ciclo de vida completo de los datos: desde los ficheros brutos del cliente hasta los artefactos que consume la aplicación en tiempo de ejecución. Todos los scripts son independientes de Django y se ejecutan desde la raíz del proyecto.
+Este documento describe el ciclo de vida de los datos del proyecto, desde los ficheros originales entregados por el cliente hasta su carga en PostgreSQL y su uso por la aplicación y el sistema de recomendaciones.
 
 ---
 
 ## 1. Datos de origen
 
-Los ficheros brutos entregados por el cliente se guardan en `data/raw/` y **nunca se modifican**. No están versionados en Git (carpeta excluida en `.gitignore`).
+Los ficheros brutos se almacenan en `data/raw/` y no se modifican directamente. Esta carpeta está excluida de Git.
 
 | Fichero | Descripción | Registros |
-|---|---|---|
-| `books.csv` | Catálogo bibliográfico con ISBN, título, autor, año e idioma | 9.998 |
-| `copies.csv` | Ejemplares físicos del bibliobús | — |
+|---|---|---:|
+| `books.csv` | Catálogo bibliográfico | 9.998 |
+| `copies.csv` | Ejemplares físicos | — |
 | `user_info.csv` | Usuarios registrados | 53.424 |
-| `ratings.csv` | Valoraciones históricas (1-5 estrellas) | 5,7 M |
+| `ratings.csv` | Valoraciones históricas de 1 a 5 | 5,7 M |
 
 ---
 
 ## 2. ETL y limpieza
 
-Scripts en `etl/`. Cada bloque puede ejecutarse por separado; todos leen de `data/raw/` y escriben en `data/clean/`.
+Los scripts se encuentran en `etl/`, leen desde `data/raw/` y generan artefactos procesados.
 
-### Bloque 1 — Libros (`etl_books_extended.py`)
+### Libros — `etl_books_extended.py`
 
-- Normaliza `language_code`: variantes de inglés (`en`, `en-US`, `en-GB`) → `eng`.
-- ISBNs de 9 dígitos recuperados con zero-padding (→ 10 dígitos).
-- Años negativos (a.C.) conservados — son datos correctos.
-- Libros sin ISBN reciben identificador sintético `SIN-ISBN-{book_id:05d}` para respetar la restricción UNIQUE del esquema sin perder registros con ejemplares físicos.
-- Separa autores en tabla relacional (2.077 libros tienen más de un autor).
+- Normaliza `language_code`.
+- Recupera ISBNs de 9 dígitos mediante zero-padding.
+- Conserva años negativos cuando corresponden a fechas a.C.
+- Genera identificadores sintéticos `SIN-ISBN-{book_id:05d}` para libros sin ISBN.
+- Separa autores para representar la relación N:M con `Book`.
 
-**Salida:** `data/clean/books_clean_extended.csv`, `data/clean/book_authors_extended.csv`
+**Salida:**
 
-> Existe una versión A (`etl_books.py`) que descarta los 718 libros sin ISBN. Se optó por la versión B (extendida) para no perder registros con ejemplares físicos reales.
+- `data/clean/books_clean_extended.csv`
+- `data/clean/book_authors_extended.csv`
 
-> **Nota sobre `books_with_genre.csv`:** el artefacto versionado en `data/` fue generado en una fase anterior del proyecto y **no incluye los ISBNs sintéticos** — los 718 libros originalmente sin ISBN aparecen con valor vacío. Tampoco refleja el soporte de géneros múltiples (bloque 4B): todos los libros tienen un único género. Los ISBNs faltantes se han enriquecido parcialmente con `recuperar_isbn.py` (171 recuperados). Si se re-ejecuta el ETL completo, este artefacto deberá regenerarse.
+> Existe una versión anterior, `etl_books.py`, que descartaba libros sin ISBN. Se mantiene la versión extendida para no perder registros con ejemplares físicos.
 
-### Bloque 2 — Ejemplares (`etl_copies_extended.py`)
+### Ejemplares — `etl_copies_extended.py`
 
-Limpieza de `copies.csv`.
+Limpia y normaliza `copies.csv`.
 
 **Salida:** `data/clean/copies_clean_extended.csv`
 
-### Bloque 3 — Usuarios (`etl_users.py`)
+### Usuarios — `etl_users.py`
 
-- Campo `sexo` eliminado: indicación expresa del cliente y principio de minimización GDPR.
+Elimina el campo `sexo` según las decisiones funcionales del proyecto y el principio de minimización de datos.
 
 **Salida:** `data/clean/users_clean.csv`
 
-### Bloque 4A — Valoraciones (`etl_ratings.py`)
+### Valoraciones — `etl_ratings.py`
 
-Limpieza de `ratings.csv`.
+Limpia `ratings.csv`.
+
+Las valoraciones se mantienen en el rango de 1 a 5 y constituyen la principal fuente de información para el recomendador.
 
 **Salida:** `data/clean/ratings_clean.csv`
 
-### Bloque 4B — Géneros (`etl_genres.py`)
+### Géneros — `etl_genres.py`
 
-Infiere el género literario de los 9.998 libros a partir de título, autor y año usando la API de Anthropic (Claude Sonnet). Proceso en 4 fases idempotentes (se puede interrumpir y reanudar):
+Clasifica los libros por género a partir de título, autor y año.
 
-1. `generate-prompts` — divide libros en lotes y genera prompts
-2. `process-prompts` — llama a la API y guarda respuestas en `data/responses/`
-3. `merge-responses` — reconstruye el CSV con columna `genre`
-4. `validate` — verifica taxonomía y reporta estadísticas
+Proceso original:
 
-Taxonomía de 30 géneros: Ficción, Fantasía, Ciencia ficción, Misterio, Romance, Thriller, Juvenil, Infantil, Clásicos, Historia, Ficción histórica, Biografía, Memorias, Ensayo, Ciencia, Autoayuda, Filosofía, Arte, Cocina, Deportes, Cómic y novela gráfica, Aventura, Terror, Poesía, Teatro, Religión, Política, Economía, Tecnología, Viajes.
+1. `generate-prompts`
+2. `process-prompts`
+3. `merge-responses`
+4. `validate`
 
-**Requiere:** variable de entorno `ANTHROPIC_API_KEY` y acceso a internet.  
-**Salida:** `data/clean/books_clean_final.csv`, `data/clean/book_genres.csv`
+**Requiere:** `ANTHROPIC_API_KEY` y acceso a internet.
 
-> El artefacto versionado `books_with_genre.csv` tiene género único por libro (formato texto plano). El soporte de géneros múltiples se añadió después y aún no está reflejado en ese fichero.
+**Salida:**
+
+- `data/clean/books_clean_final.csv`
+- `data/clean/book_genres.csv`
+
+> El fichero `books_with_genre.csv` fue generado en una fase anterior y representa un único género por libro, mientras que el modelo actual admite una relación N:M entre `Book` y `Genre`.
 
 ---
 
 ## 3. Artefactos versionados en `data/`
 
-Resultado del ETL, versionados en Git para que cualquier miembro del equipo pueda arrancar el sistema sin re-ejecutar el pipeline.
+Los principales artefactos procesados se conservan en Git para evitar tener que repetir todo el ETL en cada entorno.
 
-| Fichero | Origen | Descripción |
-|---|---|---|
-| `books_with_genre.csv` | ETL bloque 1B + 4B | Catálogo completo con género literario. Columnas: `book_id`, `isbn`, `title`, `original_title`, `original_publication_year`, `language_code`, `genre`. 9.998 libros; 529 con ISBN vacío (enriquecidos parcialmente con `recuperar_isbn.py`); año en formato float (`2006.0`); género único por libro |
-| `book_authors_extended.csv` | ETL bloque 1B | Relación libro-autor. Columnas: `book_id`, `author` |
-| `copies_clean.csv` | ETL bloque 2 | Ejemplares limpios |
-| `users_clean.csv` | ETL bloque 3 | Usuarios limpios |
-| `votos_precalculados.csv` | `train.py` | Votos y nota media por libro. Columnas: `book_id`, `votos`, `nota_media` |
-| `recs_libros.csv` | `train.py` | Top-3 libros similares por libro (cosine similarity). Columnas: `book_id`, `rec_1`, `rec_2`, `rec_3` |
-| `recs_usuarios.csv` | `train.py` | Top-3 recomendaciones por usuario. Columnas: `user_id`, `rec_1`, `rec_2`, `rec_3` |
-| `isbn_recuperados.csv` | `recuperar_isbn.py` | ISBNs obtenidos de Open Library para los 700 libros sin ISBN local. Columnas: `book_id`, `title`, `isbn`. 171 recuperados, 529 no encontrados en OL |
-| `sinopsis.csv` | `generar_sinopsis.py` | Sinopsis reales servidas offline por el botón "✨ Preguntar a la IA". Columnas: `title`, `sinopsis`, `isbn`. ~1.400 entradas (libros más populares) |
+| Fichero | Descripción |
+|---|---|
+| `books_with_genre.csv` | Catálogo procesado con información bibliográfica y género |
+| `book_authors_extended.csv` | Relación libro-autor |
+| `copies_clean.csv` | Ejemplares procesados |
+| `users_clean.csv` | Usuarios procesados |
+| `book_genres.csv` | Relación libro-género |
+| `isbn_recuperados.csv` | ISBNs recuperados mediante Open Library |
+| `sinopsis.csv` | Sinopsis disponibles offline |
+
+También existen artefactos del recomendador anterior:
+
+- `votos_precalculados.csv`
+- `recs_libros.csv`
+- `recs_usuarios.csv`
+
+Estos ficheros fueron generados por `train.py` mediante similitud coseno y se consideran legado dentro de la reevaluación.
 
 ---
 
-## 4. Carga en base de datos
+## 4. Carga en PostgreSQL
 
-```bash
-python load_data_fast.py
+La versión actual del proyecto utiliza PostgreSQL como sistema principal de persistencia.
+
+Antes de cargar datos:
+
+```cmd
+python manage.py migrate
 ```
 
-Lee los artefactos de `data/` y los carga en SQLite mediante `bulk_create`. Pobla las tablas `Book`, `Author`, `Copy`, `LibraryUser` y `Rating`. Tiempo estimado: ~2 minutos.
+La carga se realiza mediante:
 
-**Requiere:** entorno virtual activo con dependencias instaladas (`pip install -r requirements.txt`).
+```cmd
+python load_data_postgres.py
+```
+
+El script utiliza Django ORM y `bulk_create` para poblar las principales entidades:
+
+- `Book`
+- `Author`
+- relaciones libro-autor
+- `Copy`
+- `LibraryUser`
+- `Rating`
+
+La carga completa puede tardar varios minutos debido al volumen de valoraciones.
+
+La conexión a PostgreSQL se configura mediante un archivo `.env` basado en `.env.example`.
 
 ---
 
-## 5. Entrenamiento del motor de recomendaciones
+## 5. Sistema de recomendación anterior
 
-```bash
+La primera versión del proyecto utilizaba:
+
+```cmd
 python train.py
 ```
 
-Calcula similitud coseno ítem-ítem sobre la matriz de valoraciones (53K usuarios × 10K libros, 5,7M ratings). Genera los CSVs de recomendaciones y los votos precalculados. Tiempo estimado: ~5 minutos.
+Este proceso calculaba similitud coseno ítem-ítem sobre la matriz de valoraciones y generaba:
 
-**Requiere:** base de datos cargada (paso 4).
+- `votos_precalculados.csv`
+- `recs_libros.csv`
+- `recs_usuarios.csv`
+
+Este sistema se mantiene únicamente como referencia histórica y compatibilidad temporal con componentes aún no migrados.
 
 ---
 
-## 6. Enriquecimiento externo (requiere internet — ejecutar antes de la demo)
+## 6. Sistema de recomendación actual — Apriori
 
-Estos scripts consultan la API gratuita de Open Library. Una vez generados los ficheros, la app los sirve **offline**.
+La reevaluación sustituye el recomendador anterior por reglas de asociación generadas con Apriori.
 
-### Recuperar ISBNs faltantes
+El flujo previsto es:
 
-```bash
+```text
+Rating
+  |
+  v
+Copy
+  |
+  v
+Book
+  |
+  v
+Agrupación por usuario
+  |
+  v
+Transacciones
+  |
+  v
+Apriori
+  |
+  v
+Reglas de asociación
+  |
+  v
+PostgreSQL
+```
+
+Las transacciones se construyen agrupando libros valorados positivamente por cada usuario.
+
+El parámetro `min_rating` determina la valoración mínima necesaria para incluir un libro en una transacción.
+
+Ejemplo:
+
+```text
+Usuario 1 -> [Libro A, Libro B, Libro C]
+Usuario 2 -> [Libro A, Libro C]
+Usuario 3 -> [Libro B, Libro D]
+```
+
+Apriori podrá generar reglas como:
+
+```text
+Libro A => [Libro C]
+Libro A => [Libro B, Libro C]
+```
+
+Las métricas principales serán:
+
+- `support`
+- `confidence`
+- `lift`
+
+---
+
+## 7. Persistencia de Apriori
+
+Cada ejecución se registra en `AprioriRun`.
+
+Se almacenan, entre otros datos:
+
+- `min_support`
+- `min_confidence`
+- `min_lift`
+- `min_rating`
+- `max_len`
+- número de transacciones
+- número de reglas
+- estado activo de la ejecución
+
+Las reglas se persisten en:
+
+- `AssociationRule`
+- `AssociationRuleTarget`
+
+`AssociationRule` almacena el libro antecedente y las métricas de la regla.
+
+`AssociationRuleTarget` almacena los libros del consecuente, permitiendo representar reglas como:
+
+```text
+Libro A => [Libro B, Libro C]
+```
+
+---
+
+## 8. Enriquecimiento externo
+
+Existen scripts auxiliares que consultan Open Library.
+
+### Recuperar ISBNs
+
+```cmd
 python recuperar_isbn.py
 ```
 
-Para los libros con `isbn = N/A` en `books_with_genre.csv`, busca su ISBN en Open Library por título y autor. Guarda en `data/isbn_recuperados.csv`. Tiempo: ~7 minutos (700 libros).
+Genera:
 
-Tras ejecutarlo, integrar los ISBNs recuperados en `books_with_genre.csv`:
-
-```python
-import pandas as pd
-books = pd.read_csv('data/books_with_genre.csv', encoding='utf-8-sig', dtype=str)
-rec   = pd.read_csv('data/isbn_recuperados.csv', dtype=str)
-rec   = rec[rec['isbn'].notna() & rec['isbn'].str.strip().ne('')][['book_id','isbn']].rename(columns={'isbn':'isbn_nuevo'})
-books = books.merge(rec, on='book_id', how='left')
-mask  = books['isbn_nuevo'].notna() & books['isbn_nuevo'].str.strip().ne('')
-books.loc[mask, 'isbn'] = books.loc[mask, 'isbn_nuevo']
-books.drop(columns=['isbn_nuevo']).to_csv('data/books_with_genre.csv', index=False, encoding='utf-8')
+```text
+data/isbn_recuperados.csv
 ```
 
 ### Generar sinopsis
 
-```bash
+```cmd
 python generar_sinopsis.py
 ```
 
-Obtiene descripciones reales de libros desde Open Library (ruta ISBN → works o título → works). Prioriza libros por número de votos. Guarda en `data/sinopsis.csv`. Tiempo: ~3-4 horas para los 9.998 libros (reanudable si se interrumpe).
+Genera:
+
+```text
+data/sinopsis.csv
+```
+
+Estos procesos requieren internet, pero los artefactos resultantes pueden utilizarse después de forma offline.
 
 ---
 
-## 7. Orden de ejecución completo (entorno nuevo)
+## 9. Configuración de PostgreSQL
 
-```bash
-# 1. Entorno
-python -m venv venv && source venv/bin/activate
+El archivo `.env` debe contener una configuración equivalente a:
+
+```env
+DB_NAME=casa_cultura
+DB_USER=casa_cultura_user
+DB_PASSWORD=TU_PASSWORD
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+`.env` está excluido de Git y `.env.example` actúa como plantilla.
+
+---
+
+## 10. Orden de ejecución en un entorno nuevo
+
+### 1. Crear entorno virtual
+
+```cmd
+py -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-# 2. ETL (requiere data/raw/ con los ficheros del cliente)
-python etl/etl_books_extended.py
-python etl/etl_copies_extended.py
-python etl/etl_users.py
-python etl/etl_ratings.py
-python etl/etl_genres.py        # requiere ANTHROPIC_API_KEY e internet
+### 2. Configurar PostgreSQL
 
-# 3. Carga en BD
+Crear el usuario y la base de datos y preparar el archivo `.env`.
+
+### 3. Aplicar migraciones
+
+```cmd
 python manage.py migrate
-python load_data_fast.py
+```
 
-# 4. Motor de recomendaciones
-python train.py
+### 4. Cargar datos
 
-# 5. Enriquecimiento (con internet, antes de la demo)
-python recuperar_isbn.py
-python generar_sinopsis.py
+```cmd
+python load_data_postgres.py
+```
 
-# 6. Arrancar la app
+### 5. Generar reglas Apriori
+
+El script definitivo deberá:
+
+1. leer las valoraciones desde PostgreSQL;
+2. construir las transacciones por usuario;
+3. aplicar `min_rating`;
+4. ejecutar Apriori;
+5. filtrar por `min_support`, `min_confidence` y `min_lift`;
+6. registrar la ejecución en `AprioriRun`;
+7. guardar reglas en `AssociationRule`;
+8. guardar consecuentes en `AssociationRuleTarget`;
+9. marcar como activa la nueva ejecución.
+
+### 6. Arrancar la aplicación
+
+```cmd
 python manage.py runserver
 ```
 
-> Los pasos 2 y 5 requieren internet y ya están ejecutados — sus artefactos están versionados en `data/`. En un entorno limpio basta con los pasos 3, 4 y 6.
+Disponible en [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
+
+---
+
+## 11. Resumen
+
+```text
+Datos originales
+      |
+      v
+ETL y limpieza
+      |
+      v
+Artefactos procesados
+      |
+      v
+load_data_postgres.py
+      |
+      v
+PostgreSQL
+      |
+      +------------------+
+      |                  |
+      v                  v
+Aplicación Django    Algoritmo Apriori
+                         |
+                         v
+                Reglas de asociación
+                         |
+                         v
+                    PostgreSQL
+```
+
+PostgreSQL actúa como fuente principal de datos para la aplicación y para el sistema de recomendaciones.
 
 ---
 
