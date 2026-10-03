@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Analítico - Casa de la Cultura</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .kpi-card { border-radius: 8px; border: 1px solid #e9ecef; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Dashboard Analítico del Sistema de Recomendación</h1>
+                <p class="text-muted small mb-0">Métricas del algoritmo Apriori persistidas en PostgreSQL</p>
+            </div>
+            <a href="{% url 'buscador' %}" class="btn btn-outline-secondary btn-sm">Volver al Catálogo</a>
+        </div>
+        
+        {% if run %}
+            <!-- Tarjetas KPI -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card kpi-card shadow-sm bg-white p-3">
+                        <span class="text-muted text-uppercase small fw-bold">Reglas Activas</span>
+                        <h2 class="fw-bold text-primary mt-2 mb-0">{{ stats.total_reglas }}</h2>
+                        <small class="text-muted">Soporte min: {{ run.min_support|floatformat:2 }}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card kpi-card shadow-sm bg-white p-3">
+                        <span class="text-muted text-uppercase small fw-bold">Libros con Reglas</span>
+                        <h2 class="fw-bold text-success mt-2 mb-0">{{ stats.total_cobertura }}</h2>
+                        <small class="text-muted">Cobertura de antecedentes</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card kpi-card shadow-sm bg-white p-3">
+                        <span class="text-muted text-uppercase small fw-bold">Confianza Media</span>
+                        <h2 class="fw-bold text-info mt-2 mb-0">{{ stats.avg_confidence|floatformat:1 }}%</h2>
+                        <small class="text-muted">Umbral min: {{ run.min_confidence|floatformat:2 }}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card kpi-card shadow-sm bg-white p-3">
+                        <span class="text-muted text-uppercase small fw-bold">Lift Máximo</span>
+                        <h2 class="fw-bold text-danger mt-2 mb-0">{{ stats.max_lift|floatformat:2 }}</h2>
+                        <small class="text-muted">Fuerza sobre el azar (> 1.0)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Reglas Destacadas por Lift -->
+            <div class="card shadow-sm border-0 bg-white">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold text-dark">Top 10 Reglas con Mayor Fuerza de Asociación (Lift)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 35%;">Si te gustó (Antecedente)</th>
+                                    <th style="width: 35%;">Te recomendamos (Consecuentes)</th>
+                                    <th class="text-center">Soporte</th>
+                                    <th class="text-center">Confianza</th>
+                                    <th class="text-center">Lift</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rule in top_rules %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ rule.antecedent_libro.title }}</strong>
+                                    </td>
+                                    <td>
+                                        <ul class="list-unstyled mb-0">
+                                            {% for b in rule.consequent_libros %}
+                                                <li>📚 {{ b.title }}</li>
+                                            {% empty %}
+                                                <li class="text-muted">Sin consecuentes registrados</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td class="text-center">{{ rule.support|floatformat:3 }}</td>
+                                    <td class="text-center fw-semibold text-success">{{ rule.confidence|floatformat:2 }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-danger px-2 py-1 fs-6">{{ rule.lift|floatformat:2 }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-warning py-4 text-center shadow-sm" role="alert">
+                <h5 class="alert-heading fw-bold mb-2">No hay ninguna ejecución activa de Apriori</h5>
+                <p class="mb-0">Ejecuta <code>python manage.py generar_reglas_personalizado</code> para poblar el modelo.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

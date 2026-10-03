@@ -1353,3 +1353,52 @@ def resumen_ia_view(request):
 
 
     return JsonResponse({'resumen': ' '.join(partes)})
+
+def dashboard_analitico(request):
+    """
+    [VÍDEO - KEYWORD: CONSULTA DE EJECUCIÓN ACTIVA Y MÉTRICAS KPI]
+    Recupera la ejecución activa de Apriori y calcula en base de datos 
+    las métricas agregadas para las tarjetas y tablas del dashboard.
+    """
+    active_run = AprioriRun.objects.filter(is_active=True).first()
+    
+    context = {
+        'run': active_run,
+        'top_rules': [],
+        'stats': {}
+    }
+    
+    if active_run:
+        # [VÍDEO - KEYWORD: DETECCIÓN DINÁMICA DE CAMPOS Y OPTIMIZACIÓN N+1]
+        fk_book_rule = next(f for f in AssociationRule._meta.fields if f.is_relation and issubclass(f.related_model, Book))
+        fk_book_target = next(f for f in AssociationRuleTarget._meta.fields if f.is_relation and issubclass(f.related_model, Book))
+        fk_rule_target = next(f for f in AssociationRuleTarget._meta.fields if f.is_relation and issubclass(f.related_model, AssociationRule))
+
+        # Obtenemos las 10 reglas con mayor Lift
+        top_rules = list(AssociationRule.objects.filter(run=active_run).select_related(fk_book_rule.name).order_by('-lift')[:10])
+
+        # Enlazamos los consecuentes sin sobrecargar consultas
+        targets = AssociationRuleTarget.objects.filter(**{f"{fk_rule_target.name}__in": top_rules}).select_related(fk_book_target.name)
+        targets_map = {}
+        for t in targets:
+            r_id = getattr(t, fk_rule_target.attname)
+            b = getattr(t, fk_book_target.name)
+            targets_map.setdefault(r_id, []).append(b)
+
+        for r in top_rules:
+            r.antecedent_libro = getattr(r, fk_book_rule.name)
+            r.consequent_libros = targets_map.get(r.id, [])
+
+        context['top_rules'] = top_rules
+
+        # [VÍDEO - KEYWORD: AGREGACIONES SQL EN POSTGRESQL]
+        reglas_qs = AssociationRule.objects.filter(run=active_run)
+        context['stats'] = {
+            'total_reglas': reglas_qs.count(),
+            'avg_confidence': (reglas_qs.aggregate(Avg('confidence'))['confidence__avg'] or 0) * 100,
+            'avg_support': (reglas_qs.aggregate(Avg('support'))['support__avg'] or 0) * 100,
+            'max_lift': reglas_qs.aggregate(Max('lift'))['lift__max'] or 0,
+            'total_cobertura': reglas_qs.values(fk_book_rule.name).distinct().count()
+        }
+
+    return render(request, 'app/dashboard_personalizado.html', context)
