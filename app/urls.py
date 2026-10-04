@@ -10,4 +10,6 @@ urlpatterns = [
     path('api/ia/', views.resumen_ia_view, name='resumen_ia'),
     path('valorar/<int:book_id>/', views.valorar_libro, name='valorar_libro'),
     path('dashboard/', views.dashboard_analitico, name='dashboard_analitico'),
+    path('mi-biblioteca/', views.mi_biblioteca_view, name='mi_biblioteca'),
+    path('eliminar-valoracion/<int:rating_id>/', views.eliminar_valoracion_view, name='eliminar_valoracion'),
 ]

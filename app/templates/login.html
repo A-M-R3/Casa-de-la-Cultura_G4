@@ -4,39 +4,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Casa de la Cultura - Acceso</title>
+    <title>Acceso - Casa de la Cultura</title>
     <style>
-        :root { --bg-color: #fcfbf9; --text-main: #2c2825; --accent: #8b1e28; --card-bg: #ffffff; --border: #e6e2d8; }
-        [data-theme="dark"] { --bg-color: #1a1817; --text-main: #e8e6e3; --accent: #c43946; --card-bg: #252220; --border: #3d3733; }
-        body { font-family: "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; background-color: var(--bg-color); color: var(--text-main); }
-        .login-box { background: var(--card-bg); padding: 40px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 2px 2px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
-        .login-box img { max-width: 250px; display: block; margin: 0 auto; }
-        .login-box p.slogan { font-size: 1.1rem; color: var(--text-muted); font-style: italic; margin-top: -20px; margin-bottom: 25px; text-align: center; }
-        input[type="number"] { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; background: var(--bg-color); color: var(--text-main); }
-        .btn-main { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
-        .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--text-main); border: 1px solid var(--border); border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: block; box-sizing: border-box; margin-bottom: 10px; }
-        .btn-guest { width: 100%; padding: 12px; background: transparent; color: var(--accent); border: none; font-weight: bold; cursor: pointer; text-decoration: underline; display: block; box-sizing: border-box; }
-        .divider { border-top: 1px dashed var(--border); margin: 25px 0; }
+        :root {
+            --bg-color: #FAF7F2;
+            --card-bg: #FFFFFF;
+            --text-main: #2B2625;
+            --text-muted: #786F6A;
+            --accent: #8C3A27;
+            --accent-hover: #702D1E;
+            --border: #E8DFD8;
+            --shadow: rgba(43, 38, 37, 0.08);
+            --input-bg: #FCFAF8;
+            --danger-bg: #FDF2F2;
+            --danger-text: #991B1B;
+            --danger-border: #F87171;
+            --success-bg: #F0FDF4;
+            --success-text: #166534;
+            --success-border: #86EFAC;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1A1614;
+            --card-bg: #241F1C;
+            --text-main: #EAE4DD;
+            --text-muted: #A39992;
+            --accent: #C86446;
+            --accent-hover: #DB7555;
+            --border: #3D3530;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --input-bg: #1A1614;
+            --danger-bg: #381A1A;
+            --danger-text: #FCA5A5;
+            --danger-border: #7F1D1D;
+            --success-bg: #1A2E1A;
+            --success-text: #86EFAC;
+            --success-border: #14532D;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+        }
+
+        .theme-switcher {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .btn-theme {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-theme:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 440px;
+            padding: 40px 32px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+            text-align: center;
+        }
+
+        .logo {
+            max-width: 220px;
+            width: 100%;
+            height: auto;
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .slogan {
+            font-size: 0.95rem;
+            font-style: italic;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .alert-box {
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .alert-error {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+
+        .alert-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .form-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-main);
+            text-align: left;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .divider {
+            border-top: 1px dashed var(--border);
+            margin: 24px 0 20px;
+        }
+
+        .section-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .btn-secondary {
+            display: inline-block;
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-outline-danger {
+            color: var(--danger-text);
+            border-color: var(--danger-border);
+        }
+
+        .btn-outline-danger:hover {
+            background-color: var(--danger-bg);
+            border-color: var(--danger-text);
+            color: var(--danger-text);
+        }
+
+        .btn-register {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-register:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-guest {
+            display: block;
+            width: 100%;
+            padding: 11px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-guest:hover {
+            background-color: var(--accent);
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <img src="{% static 'Logo.png' %}" alt="Logo Casa de la Cultura">
-        <p class="slogan">"Tu lectura, nuestra cultura"</p>
-        <form method="post">
+    <div class="theme-switcher">
+        <button id="themeToggle" class="btn-theme">Modo Oscuro</button>
+    </div>
+
+    <div class="login-card">
+        <img src="{% static 'Logo.png' %}" alt="Logo Casa de la Cultura" class="logo">
+        <div class="slogan">"Tu lectura, nuestra cultura"</div>
+
+        {% if error %}
+            <div class="alert-box alert-error">
+                ⚠️ {{ error }}
+            </div>
+        {% endif %}
+
+        {% if mensaje_exito %}
+            <div class="alert-box alert-success">
+                ✓ {{ mensaje_exito }}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}">
             {% csrf_token %}
-            <p style="margin-bottom: 5px; font-weight: bold;">Identifícate con tu ID de usuario:</p>
-            <input type="number" name="user_id" placeholder="ID de Usuario (Ej: 500)" required min="1">
-            <button type="submit" name="action" value="login" class="btn-main">Entrar al Catálogo</button>
+            <div class="form-title">Identifícate con tu ID de usuario:</div>
+            <div class="input-group">
+                <input type="number" name="user_id" placeholder="ID de Usuario (Ej: 500)" value="{{ user_id_ingresado }}" required autofocus min="1">
+            </div>
+            
+            <button type="submit" name="action" value="login" class="btn-primary">Entrar al Catálogo</button>
+
             <div class="divider"></div>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Opciones de gestión:</p>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button type="submit" name="action" value="edit" class="btn-secondary" style="margin-bottom: 0;">Modificar Gustos</button>
-                <button type="submit" name="action" value="delete" class="btn-secondary" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent);">Borrar Usuario</button>
+
+            <div class="section-label">Opciones de gestión para este ID:</div>
+            <div class="button-row">
+                <button type="submit" name="action" value="edit" class="btn-secondary">Modificar Gustos</button>
+                <button type="submit" name="action" value="delete" class="btn-secondary btn-outline-danger" onclick="return confirm('¿Seguro que deseas eliminar permanentemente este lector y todas sus valoraciones?');">Borrar Usuario</button>
             </div>
         </form>
-        <a href="{% url 'registro' %}" class="btn-secondary">Soy nuevo, quiero registrarme</a>
+
+        <a href="{% url 'registro' %}" class="btn-register">Soy nuevo, quiero registrarme</a>
         <a href="{% url 'buscador' %}" class="btn-guest">Continuar como invitado</a>
     </div>
+
+    <script>
+        const toggleBtn = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            htmlElement.setAttribute('data-theme', savedTheme);
+            updateButtonText(savedTheme);
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateButtonText(newTheme);
+        });
+
+        function updateButtonText(theme) {
+            toggleBtn.textContent = theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro';
+        }
+    </script>
 </body>
 </html>

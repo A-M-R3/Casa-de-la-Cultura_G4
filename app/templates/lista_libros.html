@@ -7,33 +7,43 @@
     <title>Casa de la Cultura - Catálogo</title>
     <style>
         :root {
-            --bg-color: #fcfbf9; 
-            --text-main: #2c2825; 
-            --text-muted: #6e6459;
-            --accent: #8b1e28; 
-            --accent-hover: #61151c;
-            --card-bg: #ffffff;
-            --border: #e6e2d8;
-            --shadow: rgba(0,0,0,0.05);
-            --genre-bg: #f0ebe4;
-            --slider-track: #e6e2d8;
+            --bg-color: #FAF7F2; 
+            --text-main: #2B2625; 
+            --text-muted: #786F6A;
+            --accent: #8C3A27; 
+            --accent-hover: #702D1E;
+            --card-bg: #FFFFFF;
+            --border: #E8DFD8;
+            --shadow: rgba(43, 38, 37, 0.05);
+            --genre-bg: #F2ECE4;
+            --slider-track: #E2D7CC;
+            --wood-tone: #5C4033;
+            --amber-star: #B45309;
+            --alert-bg: #EEF5EA;
+            --alert-text: #2E5328;
+            --alert-border: #CDE0C5;
         }
 
         [data-theme="dark"] {
-            --bg-color: #1a1817; 
-            --text-main: #e8e6e3;
-            --text-muted: #a09a93;
-            --accent: #c43946; 
-            --accent-hover: #e04a58;
-            --card-bg: #252220;
-            --border: #3d3733;
-            --shadow: rgba(0,0,0,0.3);
-            --genre-bg: #3d3733;
-            --slider-track: #3d3733;
+            --bg-color: #1A1614; 
+            --text-main: #EAE4DD;
+            --text-muted: #A39992;
+            --accent: #C86446; 
+            --accent-hover: #DB7555;
+            --card-bg: #241F1C;
+            --border: #3D3530;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --genre-bg: #322A25;
+            --slider-track: #3D3530;
+            --wood-tone: #D4A373;
+            --amber-star: #D97706;
+            --alert-bg: #1F2E1E;
+            --alert-text: #86EFAC;
+            --alert-border: #2D4A2B;
         }
 
         body { 
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             max-width: 1800px; 
             margin: 0 auto; 
             padding: 20px; 
@@ -62,17 +72,21 @@
             text-decoration: none;
             color: var(--text-main);
             font-size: 0.9rem;
-            font-weight: bold;
+            font-weight: 600;
             padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 6px;
             border: 1px solid var(--border);
             cursor: pointer;
-            background: transparent;
+            background: var(--card-bg);
             transition: all 0.2s ease;
         }
-        .btn-link:hover { background: var(--border); }
+        .btn-link:hover { 
+            background: var(--genre-bg); 
+            color: var(--accent);
+            border-color: var(--accent);
+        }
         .btn-logout { color: var(--accent); border-color: var(--accent); }
-        .btn-logout:hover { background: var(--accent); color: white; }
+        .btn-logout:hover { background: var(--accent); color: #ffffff; }
 
         .header { 
             width: 100%; 
@@ -123,8 +137,8 @@
             padding: 20px; 
             border: 1px solid var(--border);
             border-top: 4px solid var(--accent);
-            box-shadow: 2px 2px 8px var(--shadow);
-            border-radius: 4px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border-radius: 8px;
             min-width: 300px;
         }
 
@@ -133,22 +147,23 @@
             text-align: left;
             padding: 15px 20px;
             font-size: 1rem;
-            font-weight: bold;
+            font-weight: 600;
             background: var(--card-bg);
             color: var(--text-main);
             border: 1px solid var(--border);
             border-radius: 8px;
             cursor: pointer;
-            box-shadow: 1px 1px 4px var(--shadow);
+            box-shadow: 0 2px 5px var(--shadow);
             margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: background 0.2s ease;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
         
         .filter-toggle-btn:hover {
             background: var(--genre-bg);
+            border-color: var(--accent);
         }
 
         .filter-panel {
@@ -156,7 +171,7 @@
             padding: 25px;
             border-radius: 8px;
             border: 1px solid var(--border);
-            box-shadow: 2px 2px 8px var(--shadow);
+            box-shadow: 0 3px 10px var(--shadow);
             margin-bottom: 25px;
             transition: all 0.4s ease-in-out;
             max-height: 1000px;
@@ -181,20 +196,21 @@
         }
 
         .filter-group { display: flex; flex-direction: column; gap: 8px; }
-        .filter-group label { font-size: 0.9rem; font-weight: bold; color: var(--text-muted); }
+        .filter-group label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
         
         .filter-group-row { display: flex; gap: 10px; }
         .filter-group-row input { flex: 1; min-width: 0; }
 
         input[type="text"], input[type="number"], select { 
             padding: 10px 12px; 
-            font-size: 1rem;
+            font-size: 0.95rem;
             border: 1px solid var(--border); 
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: var(--bg-color);
             color: var(--text-main);
             width: 100%;
             box-sizing: border-box;
+            transition: border-color 0.2s ease;
         }
         
         input[type="text"]:focus, input[type="number"]:focus, select:focus { 
@@ -215,6 +231,7 @@
             background: var(--accent);
             cursor: pointer;
             margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
         input[type="range"]::-webkit-slider-runnable-track {
             width: 100%;
@@ -223,15 +240,15 @@
             background: var(--slider-track);
             border-radius: 3px;
         }
-        .slicer-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: bold; color: var(--text-muted); }
+        .slicer-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
         .slicer-value { color: var(--accent); font-weight: bold; }
 
         .checkbox-label { 
             display: flex; 
             align-items: center; 
             gap: 8px; 
-            font-weight: bold; 
-            font-size: 0.95rem; 
+            font-weight: 600; 
+            font-size: 0.92rem; 
             cursor: pointer; 
             color: var(--text-main);
             padding-top: 10px;
@@ -248,17 +265,17 @@
         }
 
         .search-btn { 
-            padding: 12px 30px; 
-            font-size: 1rem; 
-            font-weight: bold;
+            padding: 11px 26px; 
+            font-size: 0.95rem; 
+            font-weight: 700;
             background: var(--accent); 
-            color: white; 
+            color: #ffffff; 
             border: none; 
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer; 
             text-transform: uppercase; 
-            letter-spacing: 1px;
-            transition: background 0.2s;
+            letter-spacing: 0.05em;
+            transition: background 0.2s ease;
         }
         .search-btn:hover { background: var(--accent-hover); }
 
@@ -270,7 +287,7 @@
             padding: 6px 14px; 
             border-radius: 20px; 
             font-size: 0.85rem; 
-            font-weight: bold; 
+            font-weight: 600; 
             border: 1px solid var(--border); 
             display: flex;
             align-items: center;
@@ -280,7 +297,7 @@
             color: var(--accent);
             text-decoration: none;
             margin-left: 8px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             line-height: 1;
             transition: color 0.2s;
         }
@@ -300,29 +317,30 @@
 
         .card { 
             background: var(--card-bg); 
-            padding: 20px 25px; 
+            padding: 20px 24px; 
+            border: 1px solid var(--border);
             border-left: 5px solid var(--accent); 
-            box-shadow: 1px 1px 4px var(--shadow); 
-            border-radius: 4px; 
+            box-shadow: 0 2px 6px var(--shadow); 
+            border-radius: 8px; 
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
-        .card strong { font-family: "Georgia", serif; font-size: 1.4rem; display: block; margin-bottom: 5px; }
+        .card strong { font-family: "Georgia", serif; font-size: 1.35rem; display: block; margin-bottom: 6px; color: var(--text-main); }
         .card-meta { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; }
 
-        .genre-container { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-        .genre-tag { display: inline-block; background: var(--genre-bg); color: var(--accent); padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .genre-container { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .genre-tag { display: inline-block; background: var(--genre-bg); color: var(--wood-tone); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 
-        .sidebar-section h3 { font-family: "Georgia", serif; font-size: 1.3rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; margin-bottom: 15px; }
-        .chart-bar-container { width: 100%; background-color: var(--border); border-radius: 4px; margin-top: 8px; height: 12px; overflow: hidden; }
+        .sidebar-section h3 { font-family: "Georgia", serif; font-size: 1.25rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; margin-bottom: 15px; }
+        .chart-bar-container { width: 100%; background-color: var(--border); border-radius: 4px; margin-top: 8px; height: 10px; overflow: hidden; }
         .chart-bar-fill { height: 100%; background-color: var(--accent); border-radius: 4px; }
         
         .stat-value { 
             font-size: 0.85rem; 
             color: var(--text-muted); 
             float: right; 
-            font-weight: bold; 
+            font-weight: 700; 
             display: flex;
             align-items: center;
             gap: 5px;
@@ -331,15 +349,15 @@
         .top-item { padding: 12px 0; border-bottom: 1px dashed var(--border); }
         .top-item:last-child { border-bottom: none; }
 
-        .recommendation-box { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 30px; box-shadow: 2px 2px 8px var(--shadow); }
+        .recommendation-box { background: var(--card-bg); padding: 22px; border-radius: 8px; border: 1px solid var(--accent); margin-bottom: 30px; box-shadow: 0 3px 10px var(--shadow); }
         .rec-container { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-        .rec-card { min-width: 220px; flex: 1; background: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .rec-card { min-width: 220px; flex: 1; background: var(--bg-color); padding: 15px; border-radius: 6px; border: 1px solid var(--border); }
 
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 30px; padding: 20px; background: var(--card-bg); border-radius: 4px; border: 1px solid var(--border); }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 30px; padding: 16px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); }
 
-        .btn-ia { background: var(--accent); color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 15px; transition: background 0.2s; }
+        .btn-ia { background: var(--accent); color: #ffffff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-block; margin-top: 15px; transition: background 0.2s; }
         .btn-ia:hover { background: var(--accent-hover); }
-        .ia-box { background: var(--genre-bg); color: var(--text-main); padding: 15px; border-radius: 4px; margin-top: 15px; font-size: 0.9rem; border-left: 3px solid var(--accent); font-style: italic; display: none; line-height: 1.4; }
+        .ia-box { background: var(--genre-bg); color: var(--text-main); padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 0.9rem; border-left: 3px solid var(--accent); font-style: italic; display: none; line-height: 1.4; border: 1px solid var(--border); border-left-width: 3px; }
         .loading-ia { animation: pulse 1.5s infinite; color: var(--text-muted); }
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     </style>
@@ -362,10 +380,12 @@
             {% endif %}
         </div>
         <div class="nav-buttons">
+            <a href="/dashboard/" class="btn-link">Ver Dashboard Analítico</a>
             <button id="toggleSidebar" class="btn-link">Ocultar Estadísticas</button>
             <button id="themeToggle" class="btn-link">Modo Oscuro</button>
             {% if user_active %}
-                <a href="{% url 'perfil' %}" class="btn-link" style="color: var(--accent); border-color: var(--accent);">Mis Gustos</a>
+                <a href="/mi-biblioteca/" class="btn-link" style="color: var(--accent); border-color: var(--accent);">Mi Biblioteca</a>
+                <a href="{% url 'perfil' %}" class="btn-link">Mis Gustos</a>
                 <a href="{% url 'logout' %}" class="btn-link btn-logout">Cerrar Sesión</a>
             {% else %}
                 <a href="{% url 'login' %}" class="btn-link">Identificarse / Registrarse</a>
@@ -374,7 +394,7 @@
     </div>
 
     {% if valorado %}
-    <div style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:4px; padding:10px 20px; margin-bottom:15px; font-weight:bold;">
+    <div style="background:var(--alert-bg); color:var(--alert-text); border:1px solid var(--alert-border); border-radius:6px; padding:10px 20px; margin-bottom:15px; font-weight:bold;">
         ✓ Valoración guardada correctamente.
     </div>
     {% endif %}
@@ -468,7 +488,7 @@
                                 <option value="">Cualquier Idioma</option>
                                 {% for l in idiomas %}
                                     <option value="{{ l }}" {% if lang_sel == l %}selected{% endif %}>{{ l }}</option>
-                                    {% endfor %}
+                                {% endfor %}
                             </select>
                         </div>
 
@@ -528,7 +548,7 @@
                     <li class="card">
                         <div>
                             <strong>{{ libro.title }}</strong>
-                            <small>
+                            <small style="color: var(--text-muted);">
                                 Por {{ libro.authors }} 
                                 {% if libro.original_publication_year > 0 %}
                                     ({{ libro.original_publication_year }})
@@ -555,7 +575,7 @@
                         <div class="card-meta">
                             <div>
                                 <span style="color: var(--text-muted); font-size: 0.8rem;">ISBN: {{ libro.isbn|default:"N/A" }}</span>
-                                <div style="margin-top: 5px; font-weight: bold; color: #b8860b;">
+                                <div style="margin-top: 5px; font-weight: bold; color: var(--amber-star);">
                                     ⭐ {{ libro.nota_media|floatformat:1 }} 
                                     <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: normal;">
                                         ({{ libro.votos|floatformat:0 }} valoraciones)
@@ -592,6 +612,20 @@
         </div>
 
         <div class="sidebar">
+            {% if user_top_rated %}
+            <div class="sidebar-section">
+                <h3>Tus Favoritos (Top Valorados)</h3>
+                {% for r in user_top_rated %}
+                    <div class="top-item">
+                        <strong>{{ r.copy.book.title }}</strong><br>
+                        <span class="stat-value">
+                            ⭐ {{ r.rating }}/5
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             {% if top_dinamico %}
             <div class="sidebar-section">
                 <h3>{{ titulo_sidebar_dinamico }}</h3>

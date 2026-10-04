@@ -2,7 +2,9 @@ from django.shortcuts import render, redirect
 
 from django.http import JsonResponse
 
-from django.db.models import Count, Avg
+from django.db.models import Avg, Max, Count, Q
+
+from app.models import AssociationRule, AssociationRuleTarget, AprioriRun, Book
 
 import pandas as pd
 
@@ -15,23 +17,15 @@ import re
 import ast
 
 from app.models import (
-
     Book,
-
     Author,
-
+    Genre,
     Copy,
-
     LibraryUser,
-
     Rating,
-
     AprioriRun,
-
     AssociationRule,
-
     AssociationRuleTarget,
-
 )
 
 
@@ -71,6 +65,31 @@ MAPA_IDIOMAS = {
 }
 
 
+def dashboard_view(request):
+    total_reglas = AssociationRule.objects.count()
+    
+    # Cobertura de antecedentes únicos
+    libros_con_reglas = AssociationRule.objects.values('antecedent_id').distinct().count()
+    
+    # Métricas agregadas del algoritmo
+    agregados = AssociationRule.objects.aggregate(
+        conf_media=Avg('confidence'),
+        max_lift=Max('lift')
+    )
+    
+    # Top 10 reglas con mayor lift
+    reglas = AssociationRule.objects.select_related('antecedent')\
+                                    .prefetch_related('targets__book')\
+                                    .order_by('-lift')[:10]
+
+    context = {
+        'total_reglas': f"{total_reglas:,}".replace(",", "."),
+        'libros_con_reglas': libros_con_reglas,
+        'confianza_media': confianza_media,
+        'lift_max': lift_max,
+        'reglas': top_reglas,  # <-- Debe llamarse 'reglas' para coincidir con el HTML
+    }
+    return render(request, 'app/dashboard_personalizado.html', context)
 
 def parsear_generos(val):
 
@@ -392,53 +411,115 @@ def normalizar_texto(texto):
 
 
 
+def obtener_menor_id_disponible():
+    """
+    Localiza el número entero positivo más bajo disponible a partir de 1
+    (reutiliza huecos de usuarios eliminados).
+    """
+    existing_ids = set(LibraryUser.objects.values_list('user_id', flat=True))
+    candidate = 1
+    while candidate in existing_ids:
+        candidate += 1
+    return candidate
+
+
 def login_view(request):
+    error = None
+    mensaje_exito = None
+    user_id_ingresado = ''
 
     if request.method == 'POST':
-
         action = request.POST.get('action', 'login')
+        user_id_raw = request.POST.get('user_id', '').strip()
+        user_id_ingresado = user_id_raw
 
-        user_id = request.POST.get('user_id')
+        if not user_id_raw or not user_id_raw.isdigit():
+            error = "Por favor, introduce un número de ID de usuario válido."
+            return render(request, 'login.html', {'error': error, 'user_id_ingresado': user_id_ingresado})
 
-
-
-        if not user_id:
-
-            return redirect('login')
-
-
+        uid = int(user_id_raw)
+        user_obj = LibraryUser.objects.filter(user_id=uid).first()
 
         if action == 'login':
-
-            request.session['user_id'] = user_id
-
+            if not user_obj:
+                error = f"Usuario no identificado. El lector con ID {uid} no existe en el sistema."
+                return render(request, 'login.html', {'error': error, 'user_id_ingresado': user_id_ingresado})
+            request.session['user_id'] = str(uid)
             return redirect('buscador')
 
-
-
         elif action == 'edit':
-
-            request.session['user_id'] = user_id
-
+            if not user_obj:
+                error = f"Usuario no identificado. No se pueden modificar los gustos de un usuario que no existe."
+                return render(request, 'login.html', {'error': error, 'user_id_ingresado': user_id_ingresado})
+            request.session['user_id'] = str(uid)
             return redirect('perfil')
 
-
-
         elif action == 'delete':
-
-            try: LibraryUser.objects.filter(user_id=user_id).delete()
-
-            except: pass
-
-            if request.session.get('user_id') == str(user_id):
-
+            if not user_obj:
+                error = f"Usuario no identificado. No se puede borrar el lector con ID {uid} porque no existe."
+                return render(request, 'login.html', {'error': error, 'user_id_ingresado': user_id_ingresado})
+            
+            # Al borrar el usuario, PostgreSQL elimina sus valoraciones en cascada
+            user_obj.delete()
+            if request.session.get('user_id') == str(uid):
                 del request.session['user_id']
+            mensaje_exito = f"El usuario {uid} y todo su historial de valoraciones han sido eliminados correctamente."
+            return render(request, 'login.html', {'mensaje_exito': mensaje_exito})
 
-            return redirect('login')
+    return render(request, 'login.html', {
+        'error': error, 
+        'mensaje_exito': mensaje_exito, 
+        'user_id_ingresado': user_id_ingresado
+    })
 
 
+def registro_view(request):
+    generos_disponibles = []
+    try:
+        df_base = cargar_datos_completos()
+        if not df_base.empty:
+            generos_disponibles = sorted(set(g for sub in df_base['genre_list'] for g in sub if g and g != 'Desconocido'))
+    except:
+        pass
 
-    return render(request, 'login.html')
+    siguiente_id = obtener_menor_id_disponible()
+    error = None
+
+    if request.method == 'POST':
+        generos_elegidos = request.POST.getlist('generos')
+        gustos = ', '.join(generos_elegidos)
+        fecha_nacimiento = request.POST.get('fecha_nacimiento', '')
+        custom_id_raw = request.POST.get('user_id', '').strip()
+
+        if custom_id_raw:
+            if not custom_id_raw.isdigit():
+                error = "El ID de usuario debe ser un número entero positivo."
+            else:
+                target_id = int(custom_id_raw)
+                if LibraryUser.objects.filter(user_id=target_id).exists():
+                    error = f"Este número de usuario ya existe (ID {target_id}). Por favor, elige otro o usa el sugerido."
+                else:
+                    nuevo_id = target_id
+        else:
+            nuevo_id = siguiente_id
+
+        if not error:
+            try:
+                user = LibraryUser.objects.create(
+                    user_id=nuevo_id,
+                    comment=gustos,
+                    birth_date=fecha_nacimiento or None
+                )
+                request.session['user_id'] = str(user.user_id)
+                return redirect('buscador')
+            except Exception as e:
+                error = f"Error al registrar usuario: {e}"
+
+    return render(request, 'registro.html', {
+        'generos_disponibles': generos_disponibles,
+        'siguiente_id': siguiente_id,
+        'error': error,
+    })
 
 
 
@@ -449,73 +530,6 @@ def logout_view(request):
         del request.session['user_id']
 
     return redirect('login')
-
-
-
-def registro_view(request):
-
-    generos_disponibles = []
-
-    try:
-
-        df_base = cargar_datos_completos()
-
-        if not df_base.empty:
-
-            generos_disponibles = sorted(set(g for sub in df_base['genre_list'] for g in sub if g and g != 'Desconocido'))
-
-    except: pass
-
-
-
-    if request.method == 'POST':
-
-        generos_elegidos = request.POST.getlist('generos')
-
-        gustos = ', '.join(generos_elegidos)
-
-        fecha_nacimiento = request.POST.get('fecha_nacimiento', '')
-
-
-
-        nuevo_id = 1
-
-        try:
-
-            max_user = LibraryUser.objects.order_by('-user_id').first()
-
-            if max_user: nuevo_id = max_user.user_id + 1
-
-
-
-            user = LibraryUser(user_id=nuevo_id)
-
-            if hasattr(user, 'comment'): user.comment = gustos
-
-            elif hasattr(user, 'preferences'): user.preferences = gustos
-
-
-
-            if hasattr(user, 'birth_date'): user.birth_date = fecha_nacimiento or None
-
-            elif hasattr(user, 'birthdate'): user.birthdate = fecha_nacimiento or None
-
-
-
-            user.save()
-
-        except: pass
-
-
-
-        request.session['user_id'] = str(nuevo_id)
-
-        return redirect('buscador')
-
-
-
-    return render(request, 'registro.html', {'generos_disponibles': generos_disponibles})
-
 
 
 def perfil_view(request):
@@ -619,517 +633,223 @@ def perfil_view(request):
 
 
 def buscador_catalogo(request):
-
     query_busqueda = request.GET.get('q', '')
-
     filtro_genero = request.GET.get('genre', '')
-
     filtro_idioma = request.GET.get('lang', '')
-
     filtro_ano_min = request.GET.get('year_min', '')
-
     filtro_ano_max = request.GET.get('year_max', '')
-
     filtro_nota = request.GET.get('rating', '0')
-
     filtro_votos = request.GET.get('votes', '0')
-
     filtro_ejemplares = request.GET.get('available', '')
-
     metodo_orden = request.GET.get('sort', 'relevance')
 
-
-
     try: pagina_actual = int(request.GET.get('page', 1))
-
     except ValueError: pagina_actual = 1
-
-
 
     usuario_activo = request.session.get('user_id')
 
-
-
     df_base = cargar_datos_completos()
-
     votos_df = obtener_votos_totales()
-
     top_valorados_general, top_populares_general = obtener_tops_generales()
-
     cargar_recomendaciones()
 
-
-
     recomendaciones = []
-
     top_dinamico = []
-
     titulo_sidebar_dinamico = ""
-
     top_por_genero = []
-
     autor_destacado = ""
-
     sugerencia = None
-
     valorado = request.GET.get('valorado', '')
-
-
+    user_top_rated = []
 
     if usuario_activo:
-
         try:
-
             uid = int(usuario_activo)
-
             user_obj = LibraryUser.objects.filter(user_id=uid).first()
-
             if user_obj:
+                user_top_rated = list(Rating.objects.filter(
+                    user=user_obj
+                ).select_related('copy__book').order_by('-rating', '-created_at')[:5])
 
-                top_rating = (
-                    Rating.objects
-                    .filter(user=user_obj)
-                    .select_related('copy__book')
-                    .order_by('-rating', '-created_at')
-                    .first()
-                )
+                # 1. EVALUAR TODAS LAS VALORACIONES POSITIVAS (Rating >= 4)
+                ratings_candidatos = Rating.objects.filter(
+                    user=user_obj, 
+                    rating__gte=4
+                ).select_related('copy__book').order_by('-rating', '-created_at')
 
-                if top_rating:
-                    ext_id = top_rating.copy.book.book_id
+                for r_cand in ratings_candidatos:
+                    ext_id = r_cand.copy.book.book_id
                     recs_ids = RECS_BOOK_CACHE.get(ext_id, [])
 
                     if recs_ids:
                         df_tmp2 = cargar_datos_completos()
-                        destino_row = df_tmp2[df_tmp2['book_id'].isin(recs_ids)].head(1)
+                        destino_rows = df_tmp2[df_tmp2['book_id'].isin(recs_ids)].drop_duplicates(subset=['authors'])
 
-                        if not destino_row.empty:
+                        if not destino_rows.empty:
                             sugerencia = {
                                 'tipo': 'libro',
-                                'origen': top_rating.copy.book.title[:35],
-                                'destino': destino_row.iloc[0]['title'][:35],
+                                'origen': r_cand.copy.book.title[:35],
+                                'destino': destino_rows.iloc[0]['title'][:35],
                             }
+                            recomendaciones = destino_rows.head(3).to_dict('records')
+                            break  # Se encontró una regla activa válida
 
-                if not top_rating:
+                # 2. RESOLUCIÓN DE COLD START / FALLBACK A GÉNEROS SI NINGÚN LIBRO TIENE REGLAS
+                if not recomendaciones:
                     gustos = str(getattr(user_obj, 'comment', '') or '').strip()
-
                     if gustos and gustos not in ('nan', 'None'):
-                        generos_usuario = [
-                            g.strip()
-                            for g in gustos.split(',')
-                            if g.strip()
-                        ]
+                        generos_usuario = [g.strip() for g in gustos.split(',') if g.strip()]
+                        if generos_usuario and not df_base.empty:
+                            df_gen = df_base[
+                                df_base['genre_list'].apply(lambda x: any(g in x for g in generos_usuario))
+                            ]
+                            if not df_gen.empty:
+                                top_cands = df_gen.sort_values(
+                                    ['nota_media', 'votos'], ascending=[False, False]
+                                ).drop_duplicates(subset=['authors'])
 
-                        if generos_usuario:
-                            df_tmp = cargar_datos_completos()
-                            votos_tmp = obtener_votos_totales()
-
-                            if not df_tmp.empty and not votos_tmp.empty:
-                                import pandas as pd_inner
-
-                                df_tmp = pd_inner.merge(
-                                    df_tmp,
-                                    votos_tmp,
-                                    on='book_id',
-                                    how='left'
-                                ).fillna({
-                                    'votos': 0,
-                                    'nota_media': 0
-                                })
-
-                                df_gen = df_tmp[
-                                    df_tmp['genre_list'].apply(
-                                        lambda x: any(g in x for g in generos_usuario)
-                                    )
-                                ]
-
-                                top_gen = (
-                                    df_gen
-                                    .sort_values(
-                                        ['nota_media', 'votos'],
-                                        ascending=[False, False]
-                                    )
-                                    .head(1)
-                                )
-
-                                if not top_gen.empty:
+                                if not top_cands.empty:
+                                    primer_libro = top_cands.iloc[0]
+                                    gen_match = next((g for g in generos_usuario if g in primer_libro.get('genre_list', [])), generos_usuario[0])
                                     sugerencia = {
                                         'tipo': 'genero',
-                                        'origen': generos_usuario[0],
-                                        'destino': top_gen.iloc[0]['title'][:35],
+                                        'origen': gen_match,
+                                        'destino': primer_libro['title'][:35],
                                     }
+                                    recomendaciones = top_cands.head(3).to_dict('records')
+        except:
+            pass
 
-        except: pass
-
-
-
-    filtros_activos = False
-
-    if query_busqueda.strip(): filtros_activos = True
-
-    if filtro_genero.strip(): filtros_activos = True
-
-    if filtro_idioma.strip(): filtros_activos = True
-
-    if filtro_ano_min.strip(): filtros_activos = True
-
-    if filtro_ano_max.strip(): filtros_activos = True
-
-    if filtro_nota and str(filtro_nota) != '0': filtros_activos = True
-
-    if filtro_votos and str(filtro_votos) != '0': filtros_activos = True
-
-    if filtro_ejemplares == 'on': filtros_activos = True
-
-
+    filtros_activos = bool(query_busqueda.strip() or filtro_genero.strip() or filtro_idioma.strip() or 
+                           filtro_ano_min.strip() or filtro_ano_max.strip() or 
+                           (filtro_nota and str(filtro_nota) != '0') or 
+                           (filtro_votos and str(filtro_votos) != '0') or 
+                           filtro_ejemplares == 'on')
 
     if filtros_activos:
-
         titulo_recomendacion = "Recomendado según tu búsqueda:"
-
-    elif usuario_activo:
-
+    elif usuario_activo and recomendaciones:
         titulo_recomendacion = "Recomendado según tus gustos:"
-
     else:
-
         titulo_recomendacion = "Tendencias Actuales en el Catálogo:"
 
-
-
     if not df_base.empty:
-
         if not votos_df.empty and 'book_id' in votos_df.columns:
-
             df_base = pd.merge(df_base, votos_df, on='book_id', how='left').fillna({'votos': 0, 'nota_media': 0})
-
         else:
-
             if 'votos' not in df_base.columns: df_base['votos'] = 0
-
             if 'nota_media' not in df_base.columns: df_base['nota_media'] = 0
 
-
-
-        lista_generos = sorted(list(set(g for sublist in df_base['genre_list'] for g in sublist)))
-
+        lista_generos = sorted(list(set(g for sublist in df_base['genre_list'] for g in sublist if g != 'Desconocido')))
         lista_idiomas = sorted(df_base['language_display'].dropna().unique().tolist())
-
         resultados_busqueda = df_base.copy()
 
-
-
         def aplicar_filtros_adicionales(df):
-
             res = df.copy()
-
             if filtro_genero and not res.empty:
-
                 res = res[res['genre_list'].apply(lambda x: filtro_genero.lower() in [g.lower() for g in x]).astype(bool)]
-
             if filtro_idioma and not res.empty:
-
                 res = res[res['language_display'] == filtro_idioma]
-
             if filtro_ano_min and not res.empty:
-
                 try: res = res[res['original_publication_year'] >= int(filtro_ano_min)]
-
                 except ValueError: pass
-
             if filtro_ano_max and not res.empty:
-
                 try: res = res[res['original_publication_year'] <= int(filtro_ano_max)]
-
                 except ValueError: pass
-
             if filtro_nota and str(filtro_nota) != '0' and not res.empty:
-
                 try: res = res[res['nota_media'] >= float(filtro_nota)]
-
                 except ValueError: pass
-
             if filtro_votos and str(filtro_votos) != '0' and not res.empty:
-
                 try: res = res[res['votos'] >= int(filtro_votos)]
-
                 except ValueError: pass
-
-
-
             if filtro_ejemplares == 'on' and not res.empty:
-
                 try:
-
                     qs = list(Copy.objects.values_list('book__book_id', flat=True).distinct())
-
                     valid_books = [int(x) for x in qs if x is not None]
-
                     res = res[res['book_id'].isin(valid_books)]
-
                 except: pass
-
             return res
 
-
-
         if query_busqueda:
-
             texto_normalizado = normalizar_texto(query_busqueda)
-
             resultados_busqueda['title_norm'] = resultados_busqueda['title'].apply(normalizar_texto)
-
             resultados_busqueda['authors_norm'] = resultados_busqueda['authors'].fillna("").apply(normalizar_texto)
-
             resultados_busqueda['isbn_norm'] = resultados_busqueda['isbn'].fillna("").astype(str).apply(normalizar_texto)
 
-
-
             resultados_busqueda = resultados_busqueda[
-
                 (resultados_busqueda['title_norm'].str.contains(texto_normalizado, na=False)) | 
-
                 (resultados_busqueda['authors_norm'].str.contains(texto_normalizado, na=False)) |
-
                 (resultados_busqueda['isbn_norm'].str.contains(texto_normalizado, na=False))
-
             ]
 
-
-
             if not resultados_busqueda.empty:
-
                 primer_libro = resultados_busqueda.iloc[0]
-
                 autor_completo = primer_libro['authors']
-
-
-
                 if pd.notna(autor_completo) and autor_completo != "":
-
                     autor_destacado = autor_completo.split(',')[0].strip()
 
-
-
                 if autor_destacado and texto_normalizado in normalizar_texto(autor_destacado):
-
                     titulo_sidebar_dinamico = f"Lo mejor de {autor_destacado}"
-
                     top_dinamico = df_base[df_base['authors'].fillna('').str.contains(autor_destacado, regex=False)].sort_values(['nota_media', 'votos'], ascending=[False, False]).head(3).to_dict('records')
-
                 else:
-
                     titulo_sidebar_dinamico = f"Top para '{query_busqueda}'"
-
                     top_dinamico = resultados_busqueda.sort_values(['nota_media', 'votos'], ascending=[False, False]).head(3).to_dict('records')
-
-
 
         resultados_busqueda = aplicar_filtros_adicionales(resultados_busqueda)
 
-
-
         if filtro_genero and not df_base.empty:
-
             top_por_genero = df_base[df_base['genre_list'].apply(lambda x: filtro_genero.lower() in [g.lower() for g in x]).astype(bool)].sort_values(['nota_media', 'votos'], ascending=[False, False]).head(3).to_dict('records')
 
-
-
         if metodo_orden == 'popular':
-
             resultados_busqueda = resultados_busqueda.sort_values('votos', ascending=False)
-
         elif metodo_orden == 'top_rated':
-
             resultados_busqueda = resultados_busqueda.sort_values('nota_media', ascending=False)
-
         elif metodo_orden == 'year_new':
-
             resultados_busqueda = resultados_busqueda.sort_values('original_publication_year', ascending=False)
-
         elif metodo_orden == 'year_old':
-
             resultados_busqueda = resultados_busqueda[resultados_busqueda['original_publication_year'] > 0].sort_values('original_publication_year', ascending=True)
 
-
-
         total_resultados = len(resultados_busqueda)
-
         total_paginas = max(1, (total_resultados + 19) // 20)
-
-
-
         indice_inicio = (pagina_actual - 1) * 20
-
         indice_fin = pagina_actual * 20
-
         listado_final = resultados_busqueda.iloc[indice_inicio:indice_fin].to_dict('records')
 
-
-
-        if filtros_activos:
-
-            if listado_final:
-
-                id_referencia = listado_final[0]['book_id']
-
-                recs_ids = RECS_BOOK_CACHE.get(id_referencia, [])
-
-
-
-                if recs_ids:
-
-                    df_recom = df_base[df_base['book_id'].isin(recs_ids)]
-
-                    recomendaciones = df_recom.drop_duplicates(subset=['authors']).head(3).to_dict('records')
-
-
-
-                if len(recomendaciones) < 3:
-
-                    df_alternativa = df_base[~df_base['book_id'].isin([r['book_id'] for r in recomendaciones] + [id_referencia])]
-
-                    new_recs = df_alternativa.sort_values(['nota_media', 'votos'], ascending=[False, False]).drop_duplicates(subset=['authors']).head(3 - len(recomendaciones)).to_dict('records')
-
-                    recomendaciones.extend(new_recs)
-
-
-
-        elif usuario_activo:
-
-            try:
-
-                uid = int(usuario_activo)
-
-                user_obj = LibraryUser.objects.filter(user_id=uid).first()
-
-                if user_obj:
-
-                    top_rating = (
-                        Rating.objects
-                        .filter(user=user_obj)
-                        .select_related('copy__book')
-                        .order_by('-rating', '-created_at')
-                        .first()
-                    )
-
-                    if top_rating:
-                        ext_id = top_rating.copy.book.book_id
-                        recs_ids = RECS_BOOK_CACHE.get(ext_id, [])
-
-                        if recs_ids:
-                            recomendaciones = (
-                                df_base[df_base['book_id'].isin(recs_ids)]
-                                .drop_duplicates(subset=['authors'])
-                                .head(3)
-                                .to_dict('records')
-                            )
-
-                    if not recomendaciones:
-                        gustos = str(getattr(user_obj, 'comment', '') or '').strip()
-
-                        if gustos and gustos not in ('nan', 'None'):
-                            generos_usuario = [
-                                g.strip()
-                                for g in gustos.split(',')
-                                if g.strip()
-                            ]
-
-                            if generos_usuario:
-                                df_gen = df_base[
-                                    df_base['genre_list'].apply(
-                                        lambda x: any(g in x for g in generos_usuario)
-                                    )
-                                ]
-
-                                recomendaciones = (
-                                    df_gen
-                                    .sort_values(
-                                        ['nota_media', 'votos'],
-                                        ascending=[False, False]
-                                    )
-                                    .drop_duplicates(subset=['authors'])
-                                    .head(3)
-                                    .to_dict('records')
-                                )
-
-            except: pass
-
-
-
         if not recomendaciones:
-
             df_tendencias = aplicar_filtros_adicionales(df_base) if filtros_activos else df_base.copy()
-
             if not df_tendencias.empty:
-
                 recomendaciones = df_tendencias[df_tendencias['votos'] > 50].sort_values('nota_media', ascending=False).drop_duplicates(subset=['authors']).head(3).to_dict('records')
 
-
-
     else:
-
-        lista_generos = []
-
-        lista_idiomas = []
-
-        listado_final = []
-
-        total_paginas = 1
-
-        pagina_actual = 1
-
-
+        lista_generos, lista_idiomas, listado_final = [], [], []
+        total_paginas, pagina_actual = 1, 1
 
     return render(request, 'lista_libros.html', {
-
         'libros': listado_final, 
-
         'top_valorados_general': top_valorados_general,
-
         'top_populares_general': top_populares_general, 
-
         'top_dinamico': top_dinamico,
-
         'titulo_sidebar_dinamico': titulo_sidebar_dinamico,
-
         'top_genero': top_por_genero,
-
         'recomendaciones': recomendaciones,
-
         'titulo_recomendacion': titulo_recomendacion, 
-
         'query': query_busqueda, 
-
         'generos': lista_generos, 
-
         'idiomas': lista_idiomas,
-
         'genre_sel': filtro_genero, 
-
         'lang_sel': filtro_idioma, 
-
         'year_min_sel': filtro_ano_min,
-
         'year_max_sel': filtro_ano_max,
-
         'rating_sel': filtro_nota,
-
         'votes_sel': filtro_votos,
-
         'available_sel': filtro_ejemplares,
-
         'sort_sel': metodo_orden, 
-
         'user_active': usuario_activo,
-
+        'user_top_rated': user_top_rated,
         'page': pagina_actual,
-
         'total_paginas': total_paginas,
-
         'sugerencia': sugerencia,
-
         'valorado': valorado,
-
     })
 
 
@@ -1355,50 +1075,228 @@ def resumen_ia_view(request):
     return JsonResponse({'resumen': ' '.join(partes)})
 
 def dashboard_analitico(request):
-    """
-    [VÍDEO - KEYWORD: CONSULTA DE EJECUCIÓN ACTIVA Y MÉTRICAS KPI]
-    Recupera la ejecución activa de Apriori y calcula en base de datos 
-    las métricas agregadas para las tarjetas y tablas del dashboard.
-    """
-    active_run = AprioriRun.objects.filter(is_active=True).first()
+    active_run = AprioriRun.objects.filter(is_active=True).first() or AprioriRun.objects.last()
     
+    mensaje_config = None
+    error_config = None
+
+    # Procesar modificación de parámetros del algoritmo desde el Front-End
+    if request.method == 'POST' and request.POST.get('action') == 'modificar_algoritmo':
+        support_raw = request.POST.get('min_support', '').strip().replace(',', '.')
+        conf_raw = request.POST.get('min_confidence', '').strip().replace(',', '.')
+        lift_raw = request.POST.get('min_lift', '').strip().replace(',', '.')
+        rating_raw = request.POST.get('min_rating', '').strip()
+
+        try:
+            val_supp = float(support_raw)
+            val_conf = float(conf_raw)
+            val_lift = float(lift_raw)
+            val_rating = int(rating_raw)
+
+            # Si el usuario introduce porcentajes (ej. 30 en vez de 0.30)
+            if val_supp > 1.0: val_supp = val_supp / 100.0
+            if val_conf > 1.0: val_conf = val_conf / 100.0
+
+            if not (0.001 <= val_supp <= 1.0):
+                raise ValueError("El soporte mínimo debe estar entre 0.001 (0.1%) y 1.0 (100%).")
+            if not (0.01 <= val_conf <= 1.0):
+                raise ValueError("La confianza mínima debe estar entre 0.01 (1%) y 1.0 (100%).")
+            if val_lift < 0:
+                raise ValueError("El Lift umbral no puede ser un número negativo.")
+            if not (1 <= val_rating <= 5):
+                raise ValueError("La valoración mínima de corte debe ser un número entero entre 1 y 5.")
+
+            if active_run:
+                active_run.min_support = val_supp
+                active_run.min_confidence = val_conf
+                active_run.min_lift = val_lift
+                active_run.min_rating = val_rating
+                active_run.save()
+                mensaje_config = f"Parámetros actualizados con éxito: Soporte ≥ {val_supp:.3f}, Confianza ≥ {val_conf*100:.1f}%, Lift ≥ {val_lift:.2f}, Valoración ≥ {val_rating}★."
+        except ValueError as ve:
+            error_config = f"Error en los parámetros: {ve}"
+        except Exception as e:
+            error_config = f"Parámetro no válido: Asegúrate de ingresar números válidos sin símbolos extraños. ({e})"
+
     context = {
         'run': active_run,
         'top_rules': [],
-        'stats': {}
+        'stats': {},
+        'inspect_query': '',
+        'inspected_results': [],
+        'mensaje_config': mensaje_config,
+        'error_config': error_config,
     }
     
     if active_run:
-        # [VÍDEO - KEYWORD: DETECCIÓN DINÁMICA DE CAMPOS Y OPTIMIZACIÓN N+1]
-        fk_book_rule = next(f for f in AssociationRule._meta.fields if f.is_relation and issubclass(f.related_model, Book))
-        fk_book_target = next(f for f in AssociationRuleTarget._meta.fields if f.is_relation and issubclass(f.related_model, Book))
-        fk_rule_target = next(f for f in AssociationRuleTarget._meta.fields if f.is_relation and issubclass(f.related_model, AssociationRule))
+        # Consulta de reglas filtradas por los umbrales configurados
+        reglas_qs = AssociationRule.objects.filter(
+            run=active_run,
+            support__gte=active_run.min_support,
+            confidence__gte=active_run.min_confidence,
+            lift__gte=active_run.min_lift
+        )
 
-        # Obtenemos las 10 reglas con mayor Lift
-        top_rules = list(AssociationRule.objects.filter(run=active_run).select_related(fk_book_rule.name).order_by('-lift')[:10])
+        top_rules = list(reglas_qs.select_related('source_book').order_by('-lift')[:10])
 
-        # Enlazamos los consecuentes sin sobrecargar consultas
-        targets = AssociationRuleTarget.objects.filter(**{f"{fk_rule_target.name}__in": top_rules}).select_related(fk_book_target.name)
+        targets = AssociationRuleTarget.objects.filter(rule__in=top_rules).select_related('book')
         targets_map = {}
         for t in targets:
-            r_id = getattr(t, fk_rule_target.attname)
-            b = getattr(t, fk_book_target.name)
-            targets_map.setdefault(r_id, []).append(b)
+            targets_map.setdefault(t.rule_id, []).append(t.book)
 
         for r in top_rules:
-            r.antecedent_libro = getattr(r, fk_book_rule.name)
             r.consequent_libros = targets_map.get(r.id, [])
 
         context['top_rules'] = top_rules
 
-        # [VÍDEO - KEYWORD: AGREGACIONES SQL EN POSTGRESQL]
-        reglas_qs = AssociationRule.objects.filter(run=active_run)
         context['stats'] = {
             'total_reglas': reglas_qs.count(),
             'avg_confidence': (reglas_qs.aggregate(Avg('confidence'))['confidence__avg'] or 0) * 100,
             'avg_support': (reglas_qs.aggregate(Avg('support'))['support__avg'] or 0) * 100,
             'max_lift': reglas_qs.aggregate(Max('lift'))['lift__max'] or 0,
-            'total_cobertura': reglas_qs.values(fk_book_rule.name).distinct().count()
+            'total_cobertura': reglas_qs.values('source_book_id').distinct().count()
         }
 
+        inspect_query = request.GET.get('q_inspect', '').strip()
+        context['inspect_query'] = inspect_query
+
+        if inspect_query:
+            palabras = inspect_query.replace('-', ' ').split()
+            filtro_q = Q()
+            for palabra in palabras:
+                filtro_q &= (
+                    Q(source_book__title__icontains=palabra) |
+                    Q(source_book__authors__name__icontains=palabra)
+                )
+
+            matching_rules_qs = reglas_qs.filter(filtro_q).distinct().select_related('source_book').order_by('-lift')
+            
+            seen_rule_ids = set()
+            matching_rules = []
+            for r in matching_rules_qs:
+                if r.id not in seen_rule_ids:
+                    seen_rule_ids.add(r.id)
+                    matching_rules.append(r)
+                if len(matching_rules) >= 5:
+                    break
+
+            if matching_rules:
+                inspect_targets = AssociationRuleTarget.objects.filter(rule__in=matching_rules).select_related('book')
+                inspect_map = {}
+                for t in inspect_targets:
+                    inspect_map.setdefault(t.rule_id, []).append(t.book.title)
+
+                inspected_results = []
+                for rule in matching_rules:
+                    consecuentes = inspect_map.get(rule.id, [])
+                    inspected_results.append({
+                        'source': rule.source_book.title,
+                        'targets': consecuentes,
+                        'support_pct': round(rule.support * 100, 2),
+                        'confidence_pct': round(rule.confidence * 100, 1),
+                        'lift': round(rule.lift, 2),
+                        'explicacion': (
+                            f"De los lectores que valoraron positivamente '{rule.source_book.title}', "
+                            f"un {round(rule.confidence * 100, 1)}% también disfrutó de {', '.join(consecuentes)}. "
+                            f"El Lift de {round(rule.lift, 2)} demuestra que esta asociación es {round(rule.lift, 1)} veces "
+                            f"más fuerte que una coincidencia por puro azar."
+                        )
+                    })
+                context['inspected_results'] = inspected_results
+
     return render(request, 'app/dashboard_personalizado.html', context)
+
+def mi_biblioteca_view(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+
+    df_base = cargar_datos_completos()
+
+    # Mapeo de géneros y año de publicación desde el catálogo consolidado
+    genre_map = {}
+    year_map = {}
+    if not df_base.empty:
+        genre_map = df_base.set_index('book_id')['genre_list'].to_dict()
+        year_map = df_base.set_index('book_id')['original_publication_year'].to_dict()
+
+    user_obj = LibraryUser.objects.filter(user_id=user_id).first()
+    ratings_qs = Rating.objects.filter(user__user_id=user_id).select_related('copy__book').prefetch_related('copy__book__authors')
+
+    # Filtros de búsqueda
+    q = request.GET.get('q', '').strip()
+    if q:
+        ratings_qs = ratings_qs.filter(
+            Q(copy__book__title__icontains=q) |
+            Q(copy__book__authors__name__icontains=q)
+        ).distinct()
+
+    rating_filter = request.GET.get('rating', '')
+    if rating_filter.isdigit():
+        ratings_qs = ratings_qs.filter(rating=int(rating_filter))
+
+    genre_filter = request.GET.get('genre', '')
+    if genre_filter and not df_base.empty:
+        matching_bids = df_base[df_base['genre_list'].apply(lambda gl: genre_filter in gl)]['book_id'].tolist()
+        ratings_qs = ratings_qs.filter(copy__book__book_id__in=matching_bids)
+
+    decade_filter = request.GET.get('decade', '')
+    if decade_filter:
+        if decade_filter == 'classic':
+            ratings_qs = ratings_qs.filter(copy__book__publication_year__lt=1980)
+        elif decade_filter.isdigit():
+            start_year = int(decade_filter)
+            ratings_qs = ratings_qs.filter(
+                copy__book__publication_year__gte=start_year,
+                copy__book__publication_year__lte=start_year + 9
+            )
+
+    # Ordenación
+    sort_by = request.GET.get('sort', '-rating')
+    if sort_by == 'rating_asc':
+        ratings_qs = ratings_qs.order_by('rating', 'copy__book__title')
+    elif sort_by == 'year_desc':
+        ratings_qs = ratings_qs.order_by('-copy__book__publication_year')
+    elif sort_by == 'year_old':
+        ratings_qs = ratings_qs.order_by('copy__book__publication_year')
+    elif sort_by == 'title':
+        ratings_qs = ratings_qs.order_by('copy__book__title')
+    else:
+        ratings_qs = ratings_qs.order_by('-rating', '-created_at')
+
+    # Inyectar géneros y años consolidados en cada objeto de valoración
+    ratings_list = list(ratings_qs)
+    for r in ratings_list:
+        b_id = r.copy.book.book_id
+        r.card_genres = [g for g in genre_map.get(b_id, []) if g != 'Desconocido']
+        r.card_year = r.copy.book.publication_year or year_map.get(b_id) or 'N/A'
+
+    # Listado completo de géneros disponibles para el selector
+    generos_disponibles = []
+    if not df_base.empty:
+        generos_disponibles = sorted(list(set(g for sub in df_base['genre_list'] for g in sub if g and g != 'Desconocido')))
+
+    context = {
+        'user_active': user_id,
+        'user_obj': user_obj,
+        'ratings': ratings_list,
+        'total_valorados': Rating.objects.filter(user__user_id=user_id).count(),
+        'generos': generos_disponibles,
+        'q': q,
+        'rating_filter': rating_filter,
+        'genre_filter': genre_filter,
+        'decade_filter': decade_filter,
+        'sort_by': sort_by,
+    }
+    return render(request, 'mi_biblioteca.html', context)
+
+def eliminar_valoracion_view(request, rating_id):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        if user_id:
+            try:
+                # Se filtra por id y por el usuario en sesión para garantizar seguridad
+                Rating.objects.filter(id=rating_id, user__user_id=user_id).delete()
+            except:
+                pass
+    return redirect('mi_biblioteca')

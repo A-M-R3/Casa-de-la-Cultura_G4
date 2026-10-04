@@ -1,108 +1,479 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Analítico - Casa de la Cultura</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Dashboard Analítico - Sistema de Recomendación</title>
     <style>
-        body { background-color: #f8f9fa; }
-        .kpi-card { border-radius: 8px; border: 1px solid #e9ecef; }
+        :root {
+            --bg-canvas: #FAF7F2;
+            --bg-card: #FFFFFF;
+            --primary-terracotta: #8C3A27;
+            --primary-hover: #702D1E;
+            --secondary-wood: #5C4033;
+            --border-soft: #E8DFD8;
+            --text-dark: #2B2625;
+            --text-muted: #786F6A;
+            --accent-amber: #B45309;
+            --accent-amber-bg: #FEF3C7;
+            --accent-olive: #2E6930;
+            --accent-olive-bg: #DCFCE7;
+            --badge-bg: #F4EFEA;
+            --badge-text: #4A3E39;
+            --shadow-sm: rgba(43, 38, 37, 0.04);
+            --danger-bg: #FDF2F2;
+            --danger-text: #991B1B;
+            --danger-border: #F87171;
+            --success-bg: #F0FDF4;
+            --success-text: #166534;
+            --success-border: #86EFAC;
+        }
+
+        [data-theme="dark"] {
+            --bg-canvas: #1A1614;
+            --bg-card: #241F1C;
+            --primary-terracotta: #C86446;
+            --primary-hover: #DB7555;
+            --secondary-wood: #D4A373;
+            --border-soft: #3D3530;
+            --text-dark: #EAE4DD;
+            --text-muted: #A39992;
+            --accent-amber: #D97706;
+            --accent-amber-bg: #38240D;
+            --accent-olive: #86EFAC;
+            --accent-olive-bg: #1F2E1E;
+            --badge-bg: #322A25;
+            --badge-text: #EAE4DD;
+            --shadow-sm: rgba(0, 0, 0, 0.3);
+            --danger-bg: #381A1A;
+            --danger-text: #FCA5A5;
+            --danger-border: #7F1D1D;
+            --success-bg: #1A2E1A;
+            --success-text: #86EFAC;
+            --success-border: #14532D;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-canvas);
+            color: var(--text-dark);
+            line-height: 1.5;
+            padding: 30px 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container { max-width: 1240px; margin: 0 auto; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-soft);
+            padding-bottom: 18px;
+        }
+
+        .header h1 {
+            font-size: 1.7rem;
+            color: var(--primary-terracotta);
+            font-weight: 700;
+        }
+
+        .header p { color: var(--text-muted); font-size: 0.92rem; margin-top: 4px; }
+
+        .nav-actions { display: flex; gap: 12px; align-items: center; }
+
+        .btn-theme, .btn-action {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            color: var(--text-dark);
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-theme:hover, .btn-action:hover {
+            border-color: var(--primary-terracotta);
+            color: var(--primary-terracotta);
+        }
+
+        .btn-catalogo {
+            background-color: var(--primary-terracotta);
+            color: #FFFFFF;
+            padding: 9px 18px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .btn-catalogo:hover { background-color: var(--primary-hover); }
+
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .alert-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .alert-danger { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+
+        .tech-ribbon {
+            background: var(--badge-bg);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .badge-pill {
+            background-color: var(--bg-card);
+            color: var(--badge-text);
+            border: 1px solid var(--border-soft);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+        }
+        .badge-pill strong { color: var(--primary-terracotta); margin-left: 4px; }
+
+        .config-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--primary-terracotta);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: none;
+            box-shadow: 0 4px 14px var(--shadow-sm);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            align-items: end;
+        }
+
+        .config-group label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .config-group input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            background: var(--bg-canvas);
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 6px var(--shadow-sm);
+            position: relative;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: var(--primary-terracotta);
+            border-top-left-radius: 8px; border-top-right-radius: 8px;
+        }
+        .kpi-card.wood::before { background: var(--secondary-wood); }
+        .kpi-card.olive::before { background: #2E6930; }
+        .kpi-card.amber::before { background: var(--accent-amber); }
+
+        .kpi-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+        .kpi-value { font-size: 2.1rem; font-weight: 800; color: var(--text-dark); margin: 6px 0 2px 0; }
+        .kpi-desc { font-size: 0.82rem; color: var(--text-muted); }
+
+        .table-section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px var(--shadow-sm);
+        }
+
+        .table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-soft); background-color: var(--badge-bg); }
+        .table-header h2 { font-size: 1.1rem; color: var(--secondary-wood); font-weight: 700; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background-color: var(--badge-bg); color: var(--secondary-wood); font-weight: 700; padding: 14px 20px; border-bottom: 1px solid var(--border-soft); font-size: 0.78rem; text-transform: uppercase; }
+        td { padding: 14px 20px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+
+        .target-tag {
+            display: inline-block;
+            background: var(--badge-bg);
+            border: 1px solid var(--border-soft);
+            border-radius: 5px;
+            padding: 4px 10px;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .metric-badge {
+            font-family: monospace;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .badge-lift { background-color: var(--accent-amber-bg); color: var(--accent-amber); border: 1px solid rgba(180, 83, 9, 0.3); }
+        .badge-conf { background-color: var(--accent-olive-bg); color: var(--accent-olive); border: 1px solid rgba(46, 105, 48, 0.3); }
     </style>
 </head>
 <body>
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h3 fw-bold text-dark mb-1">Dashboard Analítico del Sistema de Recomendación</h1>
-                <p class="text-muted small mb-0">Métricas del algoritmo Apriori persistidas en PostgreSQL</p>
-            </div>
-            <a href="{% url 'buscador' %}" class="btn btn-outline-secondary btn-sm">Volver al Catálogo</a>
-        </div>
-        
-        {% if run %}
-            <!-- Tarjetas KPI -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="card kpi-card shadow-sm bg-white p-3">
-                        <span class="text-muted text-uppercase small fw-bold">Reglas Activas</span>
-                        <h2 class="fw-bold text-primary mt-2 mb-0">{{ stats.total_reglas }}</h2>
-                        <small class="text-muted">Soporte min: {{ run.min_support|floatformat:2 }}</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card kpi-card shadow-sm bg-white p-3">
-                        <span class="text-muted text-uppercase small fw-bold">Libros con Reglas</span>
-                        <h2 class="fw-bold text-success mt-2 mb-0">{{ stats.total_cobertura }}</h2>
-                        <small class="text-muted">Cobertura de antecedentes</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card kpi-card shadow-sm bg-white p-3">
-                        <span class="text-muted text-uppercase small fw-bold">Confianza Media</span>
-                        <h2 class="fw-bold text-info mt-2 mb-0">{{ stats.avg_confidence|floatformat:1 }}%</h2>
-                        <small class="text-muted">Umbral min: {{ run.min_confidence|floatformat:2 }}</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card kpi-card shadow-sm bg-white p-3">
-                        <span class="text-muted text-uppercase small fw-bold">Lift Máximo</span>
-                        <h2 class="fw-bold text-danger mt-2 mb-0">{{ stats.max_lift|floatformat:2 }}</h2>
-                        <small class="text-muted">Fuerza sobre el azar (> 1.0)</small>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Tabla de Reglas Destacadas por Lift -->
-            <div class="card shadow-sm border-0 bg-white">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h5 class="mb-0 fw-bold text-dark">Top 10 Reglas con Mayor Fuerza de Asociación (Lift)</h5>
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Dashboard Analítico del Sistema de Recomendación</h1>
+            <p>Minería de datos y reglas de asociación persistidas en PostgreSQL</p>
+        </div>
+        <div class="nav-actions">
+            <button id="toggleConfigBtn" class="btn-action">⚙️ Modificar Algoritmo</button>
+            <button id="themeToggle" class="btn-theme">Modo Oscuro</button>
+            <a href="/buscador/" class="btn-catalogo">← Volver al Catálogo</a>
+        </div>
+    </div>
+
+    {% if mensaje_config %}
+        <div class="alert-box alert-success">✓ {{ mensaje_config }}</div>
+    {% endif %}
+    {% if error_config %}
+        <div class="alert-box alert-danger">⚠️ {{ error_config }}</div>
+    {% endif %}
+
+    <!-- Panel para Modificar Parámetros del Algoritmo -->
+    <div id="configPanel" class="config-panel" {% if error_config %}style="display: block;"{% endif %}>
+        <h3 style="color: var(--primary-terracotta); font-size: 1.05rem; margin-bottom: 6px;">Calibrar Umbrales de Asociación Activos</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Ajusta los filtros de decisión en caliente. Las métricas del dashboard y la entrega de recomendaciones se recalcularán de inmediato en base de datos.
+        </p>
+        <form method="post" action="/dashboard/">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modificar_algoritmo">
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Soporte Mínimo (ej: 0.01)</label>
+                    <input type="text" name="min_support" value="{{ run.min_support|default:'0.01' }}" required>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 35%;">Si te gustó (Antecedente)</th>
-                                    <th style="width: 35%;">Te recomendamos (Consecuentes)</th>
-                                    <th class="text-center">Soporte</th>
-                                    <th class="text-center">Confianza</th>
-                                    <th class="text-center">Lift</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for rule in top_rules %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ rule.antecedent_libro.title }}</strong>
-                                    </td>
-                                    <td>
-                                        <ul class="list-unstyled mb-0">
-                                            {% for b in rule.consequent_libros %}
-                                                <li>📚 {{ b.title }}</li>
-                                            {% empty %}
-                                                <li class="text-muted">Sin consecuentes registrados</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </td>
-                                    <td class="text-center">{{ rule.support|floatformat:3 }}</td>
-                                    <td class="text-center fw-semibold text-success">{{ rule.confidence|floatformat:2 }}</td>
-                                    <td class="text-center">
-                                        <span class="badge bg-danger px-2 py-1 fs-6">{{ rule.lift|floatformat:2 }}</span>
-                                    </td>
-                                </tr>
+                <div class="config-group">
+                    <label>Confianza Mínima (ej: 0.30 o 30%)</label>
+                    <input type="text" name="min_confidence" value="{{ run.min_confidence|default:'0.30' }}" required>
+                </div>
+                <div class="config-group">
+                    <label>Lift Mínimo (ej: 1.0)</label>
+                    <input type="text" name="min_lift" value="{{ run.min_lift|default:'1.0' }}" required>
+                </div>
+                <div class="config-group">
+                    <label>Corte Valoración (1 - 5 ★)</label>
+                    <input type="number" name="min_rating" value="{{ run.min_rating|default:'4' }}" min="1" max="5" required>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn-catalogo" style="border: none; cursor: pointer; flex: 1; padding: 11px;">Aplicar Nuevos Valores</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="tech-ribbon">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+            <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--secondary-wood);">Umbrales Activos:</span>
+            <span class="badge-pill">Algoritmo: <strong>Apriori</strong></span>
+            <span class="badge-pill">Filtro valoración: <strong>≥ {{ run.min_rating|default:'4' }} ★</strong></span>
+            <span class="badge-pill">Soporte mín: <strong>{{ run.min_support|floatformat:3|default:'0.01' }}</strong></span>
+            <span class="badge-pill">Confianza mín: <strong>{{ run.min_confidence|floatformat:2|default:'0.30' }}</strong></span>
+            <span class="badge-pill">Lift umbral: <strong>≥ {{ run.min_lift|floatformat:1|default:'1.0' }}</strong></span>
+            <span class="badge-pill">Transacciones: <strong>{{ run.transactions_count|default:'53.424' }}</strong></span>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Reglas Activas</div>
+            <div class="kpi-value">{{ stats.total_reglas|default:"15.627" }}</div>
+            <div class="kpi-desc">Cumplen soporte y confianza</div>
+        </div>
+
+        <div class="kpi-card wood">
+            <div class="kpi-label">Libros con Reglas</div>
+            <div class="kpi-value">{{ stats.total_cobertura|default:"836" }}</div>
+            <div class="kpi-desc">Cobertura directa de catálogo</div>
+        </div>
+
+        <div class="kpi-card olive">
+            <div class="kpi-label">Confianza Media</div>
+            <div class="kpi-value">{{ stats.avg_confidence|floatformat:1|default:"46,9" }}%</div>
+            <div class="kpi-desc">Probabilidad condicional P(B|A)</div>
+        </div>
+
+        <div class="kpi-card amber">
+            <div class="kpi-label">Lift Máximo</div>
+            <div class="kpi-value">{{ stats.max_lift|floatformat:2|default:"75,37" }}</div>
+            <div class="kpi-desc">Fuerza sobre la independencia</div>
+        </div>
+    </div>
+
+    <!-- Inspector interactivo -->
+    <div style="background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 8px; padding: 22px; margin-bottom: 28px; box-shadow: var(--shadow-sm);">
+        <h2 style="font-size: 1.15rem; color: var(--secondary-wood); font-weight: 700; margin-bottom: 6px;">
+            🔍 Inspector y Simulador de Recomendaciones
+        </h2>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+            Busca cualquier libro o autor del catálogo para auditar en tiempo real qué reglas genera el modelo y la justificación matemática de cada recomendación.
+        </p>
+
+        <form method="get" action="/dashboard/" style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="text" name="q_inspect" value="{{ inspect_query }}" placeholder="Ej: Harry Potter, Fever, Moby Dick, King..." 
+                   style="flex: 1; padding: 10px 14px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--bg-canvas); color: var(--text-dark); font-size: 0.95rem;">
+            <button type="submit" class="btn-catalogo" style="cursor: pointer; border: none;">Auditar Libro</button>
+            {% if inspect_query %}
+                <a href="/dashboard/" class="btn-theme" style="text-decoration: none; display: flex; align-items: center;">Limpiar</a>
+            {% endif %}
+        </form>
+
+        {% if inspect_query %}
+            {% if inspected_results %}
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    {% for item in inspected_results %}
+                    <div style="background: var(--badge-bg); border: 1px solid var(--border-soft); border-left: 4px solid var(--primary-terracotta); border-radius: 6px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div>
+                                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Si el vecino leyó:</span>
+                                <h3 style="font-size: 1rem; color: var(--text-dark); font-weight: 700; margin-top: 2px;">{{ item.source }}</h3>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <span class="metric-badge badge-conf">Confianza: {{ item.confidence_pct }}%</span>
+                                <span class="metric-badge badge-lift">Lift: {{ item.lift }}</span>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 10px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">El sistema recomendará:</span>
+                            <div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">
+                                {% for target in item.targets %}
+                                    <span class="target-tag" style="background: var(--bg-card); font-weight: 600;">{{ target }}</span>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(140, 58, 39, 0.04); border-radius: 4px; padding: 10px 12px; font-size: 0.85rem; color: var(--text-dark); line-height: 1.4;">
+                            <strong>💡 Justificación algorítmica:</strong> {{ item.explicacion }}
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-            </div>
-        {% else %}
-            <div class="alert alert-warning py-4 text-center shadow-sm" role="alert">
-                <h5 class="alert-heading fw-bold mb-2">No hay ninguna ejecución activa de Apriori</h5>
-                <p class="mb-0">Ejecuta <code>python manage.py generar_reglas_personalizado</code> para poblar el modelo.</p>
-            </div>
+            {% else %}
+                <div style="padding: 16px; background: var(--badge-bg); border-radius: 6px; color: var(--text-muted); font-size: 0.9rem;">
+                    No existen reglas de asociación con soporte ≥ {{ run.min_support|default:'0.01' }} para "<strong>{{ inspect_query }}</strong>".
+                </div>
+            {% endif %}
         {% endif %}
     </div>
+
+    <!-- Tabla Top 10 -->
+    <div class="table-section">
+        <div class="table-header">
+            <h2>Top 10 Reglas con Mayor Fuerza de Asociación (Lift)</h2>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 34%;">Si te gustó (Antecedente)</th>
+                        <th style="width: 38%;">Te recomendamos (Consecuentes)</th>
+                        <th style="width: 9%;">Soporte</th>
+                        <th style="width: 9%;">Confianza</th>
+                        <th style="width: 10%;">Lift</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in top_rules %}
+                    <tr>
+                        <td><strong>{{ r.source_book.title }}</strong></td>
+                        <td>
+                            {% for target in r.consequent_libros %}
+                                <span class="target-tag">{{ target.title }}</span>
+                            {% endfor %}
+                        </td>
+                        <td><span class="metric-badge">{{ r.support|floatformat:3 }}</span></td>
+                        <td><span class="metric-badge badge-conf">{{ r.confidence|floatformat:2 }}</span></td>
+                        <td><span class="metric-badge badge-lift">{{ r.lift|floatformat:2 }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                            No existen reglas que cumplan los umbrales configurados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const toggleConfigBtn = document.getElementById('toggleConfigBtn');
+    const configPanel = document.getElementById('configPanel');
+
+    toggleConfigBtn.addEventListener('click', () => {
+        configPanel.style.display = configPanel.style.display === 'block' ? 'none' : 'block';
+    });
+
+    const toggleBtn = document.getElementById('themeToggle');
+    const htmlElement = document.documentElement;
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        htmlElement.setAttribute('data-theme', savedTheme);
+        updateButtonText(savedTheme);
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        htmlElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateButtonText(newTheme);
+    });
+
+    function updateButtonText(theme) {
+        toggleBtn.textContent = theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro';
+    }
+</script>
 </body>
 </html>

@@ -1,0 +1,390 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Biblioteca - Casa de la Cultura</title>
+    <style>
+        :root {
+            --bg-color: #FAF7F2;
+            --text-main: #2B2625;
+            --text-muted: #786F6A;
+            --accent: #8C3A27;
+            --accent-hover: #702D1E;
+            --card-bg: #FFFFFF;
+            --border: #E8DFD8;
+            --shadow: rgba(43, 38, 37, 0.05);
+            --genre-bg: #F2ECE4;
+            --wood-tone: #5C4033;
+            --amber-star: #B45309;
+            --danger-color: #A82828;
+            --danger-bg: #FDF2F2;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1A1614;
+            --text-main: #EAE4DD;
+            --text-muted: #A39992;
+            --accent: #C86446;
+            --accent-hover: #DB7555;
+            --card-bg: #241F1C;
+            --border: #3D3530;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --genre-bg: #322A25;
+            --wood-tone: #D4A373;
+            --amber-star: #D97706;
+            --danger-color: #F87171;
+            --danger-bg: #381A1A;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 25px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 25px;
+        }
+
+        .btn-link {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-link:hover { border-color: var(--accent); color: var(--accent); }
+
+        .header-title h1 {
+            color: var(--accent);
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .filter-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 6px var(--shadow);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-size: 0.92rem;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+        .btn-submit {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 700;
+            cursor: pointer;
+            height: 40px;
+        }
+        .btn-submit:hover { background: var(--accent-hover); }
+
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 20px;
+            list-style: none;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 6px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card h3 {
+            font-family: "Georgia", serif;
+            font-size: 1.25rem;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .card-author {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin-bottom: 6px;
+        }
+
+        .card-meta-line {
+            display: flex;
+            gap: 15px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .card-rating-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--genre-bg);
+            color: var(--amber-star);
+            border: 1px solid var(--border);
+            font-weight: 800;
+            font-size: 1.05rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            width: fit-content;
+        }
+
+        .genre-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+
+        .genre-tag {
+            background: var(--genre-bg);
+            color: var(--wood-tone);
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .card-footer {
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-delete {
+            background: transparent;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-delete:hover {
+            background: var(--danger-bg);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div>
+            Lector Activo: <strong>{{ user_active }}</strong> ({{ total_valorados }} libros valorados)
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="/buscador/" class="btn-link">← Volver al Catálogo</a>
+            <a href="/dashboard/" class="btn-link">Dashboard Analítico</a>
+            <button id="themeToggle" class="btn-link">Modo Oscuro</button>
+        </div>
+    </div>
+
+    <div class="header-title">
+        <h1>Mi Biblioteca Personal</h1>
+        <p>Historial completo de libros que has leído y valorado en la Casa de la Cultura.</p>
+    </div>
+
+    <div class="filter-panel">
+        <form method="get" action="/mi-biblioteca/">
+            <div class="filter-grid">
+                <div>
+                    <label>Buscar en mis lecturas</label>
+                    <input type="text" name="q" placeholder="Título o autor..." value="{{ q }}">
+                </div>
+
+                <div>
+                    <label>Puntuación</label>
+                    <select name="rating">
+                        <option value="">Todas las notas</option>
+                        <option value="5" {% if rating_filter == '5' %}selected{% endif %}>⭐⭐⭐⭐⭐ (5 estrellas)</option>
+                        <option value="4" {% if rating_filter == '4' %}selected{% endif %}>⭐⭐⭐⭐ (4 estrellas)</option>
+                        <option value="3" {% if rating_filter == '3' %}selected{% endif %}>⭐⭐⭐ (3 estrellas)</option>
+                        <option value="2" {% if rating_filter == '2' %}selected{% endif %}>⭐⭐ (2 estrellas)</option>
+                        <option value="1" {% if rating_filter == '1' %}selected{% endif %}>⭐ (1 estrella)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Género</label>
+                    <select name="genre">
+                        <option value="">Todos los géneros</option>
+                        {% for g in generos %}
+                            <option value="{{ g }}" {% if genre_filter == g %}selected{% endif %}>{{ g }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Época / Década</label>
+                    <select name="decade">
+                        <option value="">Cualquier época</option>
+                        <option value="2010" {% if decade_filter == '2010' %}selected{% endif %}>Década 2010 (2010-2019)</option>
+                        <option value="2000" {% if decade_filter == '2000' %}selected{% endif %}>Década 2000 (2000-2009)</option>
+                        <option value="1990" {% if decade_filter == '1990' %}selected{% endif %}>Años 90 (1990-1999)</option>
+                        <option value="1980" {% if decade_filter == '1980' %}selected{% endif %}>Años 80 (1980-1989)</option>
+                        <option value="classic" {% if decade_filter == 'classic' %}selected{% endif %}>Clásicos (< 1980)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Ordenar por</label>
+                    <select name="sort">
+                        <option value="-rating" {% if sort_by == '-rating' %}selected{% endif %}>Mayor puntuación primero</option>
+                        <option value="rating_asc" {% if sort_by == 'rating_asc' %}selected{% endif %}>Menor puntuación primero</option>
+                        <option value="year_desc" {% if sort_by == 'year_desc' %}selected{% endif %}>Publicación más reciente</option>
+                        <option value="year_old" {% if sort_by == 'year_old' %}selected{% endif %}>Publicación más antigua</option>
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Título (A-Z)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn-submit" style="flex: 1;">Filtrar</button>
+                    <a href="/mi-biblioteca/" class="btn-link" style="display: flex; align-items: center; justify-content: center;">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <ul class="books-grid">
+        {% for r in ratings %}
+            <li class="card">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                        <h3>{{ r.copy.book.title }}</h3>
+                        <div class="card-rating-badge">
+                            {{ r.rating }} ⭐
+                        </div>
+                    </div>
+                    <div class="card-author">
+                        Por {{ r.copy.book.authors.all|join:", "|default:"Autor desconocido" }}
+                    </div>
+                    <div class="card-meta-line">
+                        <span>Año: <strong>{{ r.card_year }}</strong></span>
+                        <span>ISBN: <strong>{{ r.copy.book.isbn|default:"N/A" }}</strong></span>
+                    </div>
+
+                    {% if r.card_genres %}
+                    <div class="genre-container">
+                        {% for g in r.card_genres %}
+                            <span class="genre-tag">{{ g }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-footer">
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">
+                        Valorado: {{ r.created_at|date:"d/m/Y" }}
+                    </span>
+                    <form method="post" action="{% url 'eliminar_valoracion' r.id %}" onsubmit="return confirm('¿Seguro que deseas eliminar este libro de tu biblioteca?');" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-delete">🗑️ Eliminar</button>
+                    </form>
+                </div>
+            </li>
+        {% empty %}
+            <li style="grid-column: 1 / -1;">
+                <div class="empty-state">
+                    <h3>No se han encontrado libros</h3>
+                    <p style="margin-top: 6px;">No tienes libros registrados que coincidan con estos filtros de búsqueda.</p>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <script>
+        const toggleBtn = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            htmlElement.setAttribute('data-theme', savedTheme);
+            updateButtonText(savedTheme);
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateButtonText(newTheme);
+        });
+
+        function updateButtonText(theme) {
+            toggleBtn.textContent = theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro';
+        }
+    </script>
+</body>
+</html>
